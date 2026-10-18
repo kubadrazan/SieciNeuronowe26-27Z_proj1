@@ -1,59 +1,106 @@
-# Project Title
+# Projekt 1: Klasyfikacja i regresja z uzyciem perceptronu
 
-> Brief description of what this project does and who it's for.
+Projekt realizowany w ramach przedmiotu **Sieci Neuronowe** na Wydziale Mini / Politechnice Warszawskiej.
 
-## Overview
+---
 
-Provide a high-level summary of the project, its goals, and key features.
+## Opis Projektu
 
-- **Feature 1**: Short description
-- **Feature 2**: Short description
-- **Feature 3**: Short description
+Celem projektu jest zaimplementowanie od podstaw wielowarstwowego perceptronu (MLP) wraz z algorytmem propagacji wstecznej bledu (z uzyciem SGD i jego wariantow) oraz przeprowadzenie badan eksperymentalnych nad jego skutecznoscia.
 
-## Prerequisites
+Projekt sklada sie z dwoch czesci:
 
-List the tools, libraries, or runtime versions required before getting started:
+1. **Czesc I (15 pkt):**
+   - Implementacja sieci MLP w jezyku Python z uzyciem wylacznie biblioteki `numpy` (brak dedykowanych bibliotek ML/DL).
+   - Rozwiazywanie zadan:
+     - **Regresji** dla funkcji R -> R,
+     - **Klasyfikacji** wektorow w R^2.
+   - Generowanie wizualizacji:
+     - Wynikow uczenia i granic decyzyjnych / krzywej regresji,
+     - Przebiegu bledu w kolejnych iteracjach/epokach,
+     - Ewolucji wartosci wag w czasie uczenia.
+   - Przeprowadzenie analizy wplywu architektury, funkcji aktywacji i miar bledu.
 
-- Language / Runtime (e.g., Python 3.11+, Node.js 20+)
-- Package manager (e.g., pip, npm)
+2. **Czesc II (5 pkt):**
+   - Zastosowanie autorskiej implementacji MLP do rozpoznawania pisanych recznie cyfr z zestawu **MNIST**.
+   - Optymalizacja wydajnosciowa oraz dobor hiperparametrow sieci.
+   - Ocena jakosci nauczonej sieci na osobnym zbiorze testowym.
 
-## Installation
+---
 
-```bash
-# Clone the repository
-git clone <repository-url>
-cd proj1
+## Wymagania i Ograniczenia Implementacyjne
 
-# Install dependencies
-# e.g., npm install / pip install -r requirements.txt
-```
+- **Jezyk i biblioteki:** Python 3.x, `numpy` (do obliczen macierzowych), `matplotlib` / `seaborn` (do wizualizacji).
+- **Ograniczenie:** **Brak mozliwosci korzystania z bibliotek implementujacych sieci neuronowe** (np. PyTorch, TensorFlow, scikit-learn).
+- **Powtarzalnosc:** Mozliwosc zainicjowania procesu uczenia z zadanym ziarnem generatora liczb pseudolosowych (`seed`).
+- **Elastyczna konfiguracja:** Latwa zmiana liczby warstw ukrytych (0-4), liczby neuronow w warstwach, obecnosci biasu, funkcji aktywacji oraz miar bledu.
 
-## Usage
+---
 
-Explain how to run the project or provide basic usage examples:
-
-```bash
-# Run the application
-# e.g., npm start / python main.py
-```
-
-## Project Structure
+## Struktura Projektu
 
 ```text
-proj1/
-├── src/            # Source files
-├── tests/          # Test suite
-└── README.md       # Project documentation
+.
++-- data/                  # Zbiory danych (regresja, klasyfikacja R2, MNIST)
++-- src/                   # Kod zrodlowy
+|   +-- __init__.py
+|   +-- mlp.py             # Implementacja wielowarstwowego perceptronu i backpropagation
+|   +-- activations.py     # Funkcje aktywacji (sigmoid, tanh, ReLU, itp.) i ich pochodne
+|   +-- losses.py          # Funkcje bledu (MSE, BCE, CCE) i ich pochodne
+|   +-- utils.py           # Wczytywanie danych, przetwarzanie, ziarno losowosci
+|   `-- visualization.py   # Modul do rysowania granic decyzyjnych, bledu i wag
++-- config/                # Pliki konfiguracyjne / skrypty z hiperparametrami
++-- plots/                 # Wygenerowane wykresy i wizualizacje do raportu
++-- main_regression.py     # Skrypt uruchamiajacy eksperymenty dla regresji
++-- main_classification.py # Skrypt uruchamiajacy eksperymenty dla klasyfikacji R2
++-- main_mnist.py          # Skrypt uruchamiajacy uczenie na zbiorze MNIST
++-- README.md              # Dokumentacja projektu
+`-- requirements.txt       # Wymagane biblioteki (numpy, matplotlib)
 ```
 
-## Running Tests
+---
 
+## Zakres Badan Eksperymentalnych
+
+Raport z projektu obejmuje analize nastepujacych zagadnien:
+1. **Wplyw funkcji aktywacji:** Porownanie funkcji sigmoidalnej oraz dwoch innych funkcji (np. `tanh`, `ReLU`) w warstwach ukrytych oraz dobor wlasciwej funkcji na wyjsciu.
+2. **Wplyw architektury sieci:** Badanie liczby warstw ukrytych (od 0 do 4) oraz liczby neuronow w poszczegolnych warstwach.
+3. **Wplyw miary bledu:** Porownanie dwoch miar bledu dla klasyfikacji (np. MSE vs Cross-Entropy) oraz dwoch dla regresji.
+4. **Powtarzalnosc i stabilnosc:** Analiza wplywu losowosci wag poczatkowych na proces uczenia.
+
+---
+
+## Uruchomienie i Uzycie
+
+### 1. Instalacja zaleznosci
 ```bash
-# Run the test suite
-# e.g., npm test / pytest
+pip install -r requirements.txt
 ```
 
-## License
+### 2. Przyklady uruchomienia
 
-Distributed under the [MIT License](LICENSE).
+- **Eksperymenty dla regresji (R -> R):**
+  ```bash
+  python main_regression.py --seed 42 --layers 2 8 1 --activation sigmoid --loss mse --epochs 1000
+  ```
 
+- **Eksperymenty dla klasyfikacji (R^2):**
+  ```bash
+  python main_classification.py --seed 42 --layers 2 16 2 --activation sigmoid --loss bce --epochs 1000
+  ```
+
+- **Uczenie na zbiorze MNIST:**
+  ```bash
+  python main_mnist.py --seed 42 --epochs 50 --batch-size 64
+  ```
+
+---
+
+## Zespol i Informacje Organizacyjne
+
+- **Sklad zespolu:** [Imie i Nazwisko 1], [Imie i Nazwisko 2]
+- **Przedmiot:** Sieci Neuronowe
+- **Prowadzacy:** [Imie i Nazwisko Prowadzacego]
+- **Terminy oddania:**
+  - Oddanie czesci I: **27.10.2026**
+  - Oddanie czesci II: **03.11.2026**
