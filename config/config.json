@@ -1,0 +1,15 @@
+{
+  "seed": 42,
+  "network": {
+    "layers": [2, 16, 8, 1],
+    "activations": ["sigmoid", "sigmoid", "linear"],
+    "use_bias": true
+  },
+  "training": {
+    "loss": "mse",
+    "learning_rate": 0.01,
+    "epochs": 1000,
+    "batch_size": 32
+  }
+}
+
