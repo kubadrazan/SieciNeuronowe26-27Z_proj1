@@ -149,6 +149,66 @@ class MLP:
             else:
                 current_delta = layer.backward(current_delta)
 
+    def fit(
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        epochs: int,
+        batch_size: int,
+        optimizer,
+        X_val: np.ndarray | None = None,
+        y_val: np.ndarray | None = None,
+        record_weights: bool = True,
+    ) -> dict:
+        history = {
+            "train_loss": [],
+            "val_loss": [],
+            "weights": [] if record_weights else None,
+        }
+
+        shuffle_rng = np.random.default_rng(
+            int(self.rng.integers(0, 2**31 - 1))
+        )
+
+        for epoch in range(epochs):
+            n = X.shape[0]
+            indices = np.arange(n)
+            shuffle_rng.shuffle(indices)
+
+            for start_idx in range(0, n, batch_size):
+                end_idx = min(start_idx + batch_size, n)
+                batch_idx = indices[start_idx:end_idx]
+                X_batch = X[batch_idx]
+                y_batch = y[batch_idx]
+
+                y_pred_batch = self.forward(X_batch)
+
+                self.backward(y_pred_batch, y_batch)
+
+                optimizer.step(self.dense_layers)
+
+            train_preds = self.forward(X)
+            train_loss = self.loss_fn.forward(train_preds, y)
+            history["train_loss"].append(train_loss)
+
+            if X_val is not None and y_val is not None:
+                val_preds = self.forward(X_val)
+                val_loss = self.loss_fn.forward(val_preds, y_val)
+                history["val_loss"].append(val_loss)
+            else:
+                history["val_loss"].append(None)
+
+            if record_weights:
+                epoch_weights = []
+                for layer in self.dense_layers:
+                    w_dict = {"W": layer.W.copy()}
+                    if layer.use_bias and layer.b is not None:
+                        w_dict["b"] = layer.b.copy()
+                    epoch_weights.append(w_dict)
+                history["weights"].append(epoch_weights)
+
+        return history
+
 def build_model(config: dict) -> MLP:
     net_config = config["network"]
     layers = net_config["layers"]
