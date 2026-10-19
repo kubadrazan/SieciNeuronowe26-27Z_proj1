@@ -8,8 +8,13 @@
   "training": {
     "loss": "mse",
     "learning_rate": 0.01,
-    "epochs": 1000,
+    "momentum": 0.9,
+    "epochs": 50,
     "batch_size": 32
+  },
+  "data": {
+    "task": "regression",
+    "train_file": "data/cube_train_100.csv",
+    "test_file": "data/cube_test.csv"
   }
 }
-

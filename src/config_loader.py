@@ -9,6 +9,7 @@ AVAILABLE_LOSSES: tuple[str, ...] = ("mse", "mae", "cce", "bce")
 def validate_config(config: dict) -> None:
     net = config.get("network", {})
     train = config.get("training", {})
+    data = config.get("data", {})
 
     layers = net.get("layers", [])
     activations = net.get("activations", [])
@@ -51,11 +52,28 @@ def validate_config(config: dict) -> None:
     if train.get("learning_rate", 0) <= 0:
         raise ValueError("Parametr 'learning_rate' musi być większy od 0.")
 
+    if "momentum" in train:
+        momentum = train["momentum"]
+        if not isinstance(momentum, (int, float)) or not (0.0 <= momentum < 1.0):
+            raise ValueError(f"Parametr 'momentum' musi być liczbą z zakresu [0, 1), otrzymano: {momentum}")
+
     if not isinstance(train.get("epochs"), int) or train["epochs"] <= 0:
         raise ValueError("Parametr 'epochs' musi być dodatnią liczbą całkowitą.")
 
     if not isinstance(train.get("batch_size"), int) or train["batch_size"] <= 0:
         raise ValueError("Parametr 'batch_size' musi być dodatnią liczbą całkowitą.")
+
+    # Walidacja danych
+    if not isinstance(data, dict) or not data:
+        raise ValueError("Brak wymaganej sekcji 'data' lub jest ona pusta w konfiguracji.")
+
+    required_data_keys = ["task", "train_file", "test_file"]
+    for key in required_data_keys:
+        if key not in data:
+            raise ValueError(f"Brak wymaganego klucza '{key}' w sekcji 'data'.")
+
+    if data["task"] not in ["regression", "classification"]:
+        raise ValueError(f"Nieobsługiwane zadanie w 'data.task': {data['task']}. Dozwolone: 'regression', 'classification'.")
 
 
 def load_config(config_path: Path) -> dict:
@@ -68,11 +86,12 @@ def load_config(config_path: Path) -> dict:
 def print_config(config: dict) -> None:
     net = config["network"]
     train = config["training"]
+    data = config["data"]
 
     print(f"Wczytano konfigurację (seed={config['seed']}):")
     print(f"  Sieć: warstwy={net['layers']}, aktywacje={net['activations']}, bias={net['use_bias']}")
     print(
         f"  Trening: loss={train['loss']}, lr={train['learning_rate']}, "
-        f"epoki={train['epochs']}, batch_size={train['batch_size']}"
+        f"momentum={train.get('momentum', 0.0)}, epoki={train['epochs']}, batch_size={train['batch_size']}"
     )
-
+    print(f"  Dane: task={data['task']}, train={data['train_file']}, test={data['test_file']}")
