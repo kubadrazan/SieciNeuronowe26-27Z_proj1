@@ -17,13 +17,12 @@ class Sigmoid(Activation):
     """Funkcja sigmoidalna: f(x) = 1 / (1 + exp(-x))."""
 
     def forward(self, x: np.ndarray) -> np.ndarray:
-        alpha = 1.0
-        return 1.0 / (1.0 + np.exp(-alpha * x))
+        x_clipped = np.clip(x, -500, 500)
+        return 1.0 / (1.0 + np.exp(-x_clipped))
 
     def derivative(self, x: np.ndarray) -> np.ndarray:
-        alpha = 1.0
         f = self.forward(x)
-        return alpha * f * (1.0 - f)
+        return f * (1.0 - f)
 
 
 class Tanh(Activation):
@@ -57,11 +56,23 @@ class Linear(Activation):
         return np.ones_like(x) # array samych jedynek o tym samym kształcie co x
 
 
+
+class Softmax(Activation):
+    def forward(self, x: np.ndarray) -> np.ndarray:
+        shift_x = x - np.max(x, axis=-1, keepdims=True)
+        exps = np.exp(shift_x)
+        return exps / np.sum(exps, axis=-1, keepdims=True)
+
+    def derivative(self, x: np.ndarray) -> np.ndarray:
+        s = self.forward(x)
+        return s * (1.0 - s)
+
 ACTIVATION_REGISTRY: dict[str, type[Activation]] = {
     "sigmoid": Sigmoid,
     "tanh": Tanh,
     "relu": ReLU,
     "linear": Linear,
+    "softmax": Softmax
 }
 
 AVAILABLE_ACTIVATIONS: tuple[str, ...] = tuple(ACTIVATION_REGISTRY.keys())
