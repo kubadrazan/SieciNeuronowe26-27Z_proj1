@@ -2,6 +2,7 @@ from pathlib import Path
 import numpy as np
 
 from config_loader import load_config, print_config
+from mlp import build_model
 
 
 if __name__ == "__main__":
@@ -23,3 +24,9 @@ if __name__ == "__main__":
     batch_size = config["training"]["batch_size"]
 
     print_config(config)
+
+    # Budowa modelu i test kształtu wyjścia
+    model = build_model(config)
+    X_test = np.random.default_rng(seed).normal(size=(5, layers[0]))
+    y_pred = model.forward(X_test)
+    print(f"\nKształt wyjścia modelu dla testowego wejścia: {y_pred.shape}")
