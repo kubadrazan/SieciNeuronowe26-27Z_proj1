@@ -9,7 +9,7 @@ class Activation(ABC):
         pass
 
     @abstractmethod
-    def derivative(self, x: np.ndarray) -> np.ndarray: # backward
+    def derivative(self, x: np.ndarray) -> np.ndarray:  # backward
         pass
 
 
@@ -53,8 +53,7 @@ class Linear(Activation):
         return x
 
     def derivative(self, x: np.ndarray) -> np.ndarray:
-        return np.ones_like(x) # array samych jedynek o tym samym kształcie co x
-
+        return np.ones_like(x)  # array samych jedynek o tym samym kształcie co x
 
 
 class Softmax(Activation):
@@ -67,12 +66,13 @@ class Softmax(Activation):
         s = self.forward(x)
         return s * (1.0 - s)
 
+
 ACTIVATION_REGISTRY: dict[str, type[Activation]] = {
     "sigmoid": Sigmoid,
     "tanh": Tanh,
     "relu": ReLU,
     "linear": Linear,
-    "softmax": Softmax
+    "softmax": Softmax,
 }
 
 AVAILABLE_ACTIVATIONS: tuple[str, ...] = tuple(ACTIVATION_REGISTRY.keys())
@@ -93,4 +93,3 @@ def get_activation(name: str) -> Activation:
         )
 
     return ACTIVATION_REGISTRY[key]()
-
