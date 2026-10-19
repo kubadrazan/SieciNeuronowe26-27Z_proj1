@@ -1,6 +1,10 @@
 import json
 from pathlib import Path
 
+from activations import AVAILABLE_ACTIVATIONS
+
+AVAILABLE_LOSSES: tuple[str, ...] = ("mse", "mae", "cce", "bce")
+
 
 def validate_config(config: dict) -> None:
     net = config.get("network", {})
@@ -27,8 +31,22 @@ def validate_config(config: dict) -> None:
             f"ukrytych i wyjściowej (len(layers) - 1 = {expected_activations})."
         )
 
+    for act in activations:
+        if not isinstance(act, str) or act.strip().lower() not in AVAILABLE_ACTIVATIONS:
+            raise ValueError(
+                f"Nieznana funkcja aktywacji '{act}'. "
+                f"Dozwolone opcje: {list(AVAILABLE_ACTIVATIONS)}"
+            )
+
     if not isinstance(net.get("use_bias"), bool):
         raise ValueError("Parametr 'use_bias' musi być wartością logiczną (true/false).")
+
+    loss = train.get("loss")
+    if not isinstance(loss, str) or loss.strip().lower() not in AVAILABLE_LOSSES:
+        raise ValueError(
+            f"Nieznana funkcja straty '{loss}'. "
+            f"Dozwolone opcje: {list(AVAILABLE_LOSSES)}"
+        )
 
     if train.get("learning_rate", 0) <= 0:
         raise ValueError("Parametr 'learning_rate' musi być większy od 0.")
