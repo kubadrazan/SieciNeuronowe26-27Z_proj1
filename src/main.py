@@ -30,9 +30,8 @@ if __name__ == "__main__":
 
     # Czytanie danych i trening
     data_cfg = config["data"]
-    train_path = Path(__file__).resolve().parent.parent / data_cfg[
-        "train_file"
-    ].replace("../", "")
+    train_path = Path(__file__).resolve().parent.parent / data_cfg["train_file"]
+    test_path = Path(__file__).resolve().parent.parent / data_cfg["test_file"]
 
     X_train, y_train = load_regression_csv(str(train_path))
     scaler_X, scaler_y = Standardizer(), Standardizer()
