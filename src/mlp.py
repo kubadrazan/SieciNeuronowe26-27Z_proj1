@@ -124,6 +124,30 @@ class MLP:
             if layer.use_bias and "b" in p and layer.b is not None:
                 layer.b = p["b"].copy()
 
+    def backward(self, y_pred: np.ndarray, y_true: np.ndarray) -> None:
+        last_act_name = self.activations_names[-1].strip().lower()
+        loss_name = type(self.loss_fn).__name__.lower()
+        n = y_pred.shape[0]
+        k = y_pred.shape[1]
+
+        if last_act_name == "sigmoid" and loss_name == "bce":
+            delta = (y_pred - y_true) / (n * k)
+        elif last_act_name == "softmax" and loss_name == "cce":
+            delta = (y_pred - y_true) / n 
+        else:
+            dL_dypred = self.loss_fn.backward(y_pred, y_true)
+            last_layer = self.dense_layers[-1]
+            delta = dL_dypred * last_layer.activation.derivative(last_layer.z)
+
+        current_delta = delta
+        for i in reversed(range(len(self.dense_layers))):
+            layer = self.dense_layers[i]
+            if i == len(self.dense_layers) - 1:
+                layer.dW = layer.a_prev.T @ current_delta
+                layer.db = current_delta.sum(axis=0, keepdims=True) if layer.use_bias and layer.b is not None else None
+                current_delta = current_delta @ layer.W.T
+            else:
+                current_delta = layer.backward(current_delta)
 
 def build_model(config: dict) -> MLP:
     net_config = config["network"]
