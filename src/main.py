@@ -10,7 +10,9 @@ from utils import (
     Standardizer,
     load_classification_csv,
     load_regression_csv,
+    make_rng,
     one_hot,
+    train_val_split,
 )
 from visualization import (
     plot_classification_results,
@@ -119,18 +121,30 @@ def run(
             f"zawierają {y_train.shape[1]} wartości docelowych."
         )
 
-    X_train_raw = X_train.copy()
+    X_train_full_raw = X_train.copy()
     X_test_raw = X_test.copy()
-    y_train_raw = y_train.copy()
     y_test_raw = y_test.copy()
+
+    X_train, y_train, X_val, y_val = train_val_split(
+        X_train,
+        y_train,
+        val_frac=config["training"].get("validation_fraction", 0.2),
+        rng=make_rng(config.get("seed", 42)),
+    )
+    X_train_raw = X_train.copy()
+    y_train_raw = y_train.copy()
+    X_val_raw = X_val.copy()
+    y_val_raw = y_val.copy()
 
     scaler_X = Standardizer()
     X_train = scaler_X.fit_transform(X_train)
+    X_val = scaler_X.transform(X_val)
     X_test = scaler_X.transform(X_test)
 
     if task == "regression":
         scaler_y = Standardizer()
         y_train = scaler_y.fit_transform(y_train)
+        y_val = scaler_y.transform(y_val)
         y_test_for_loss = scaler_y.transform(y_test)
     else:
         y_test_for_loss = y_test
@@ -150,6 +164,8 @@ def run(
         epochs=training["epochs"],
         batch_size=training["batch_size"],
         optimizer=optimizer,
+        X_val=X_val,
+        y_val=y_val,
         record_weights=create_plots,
     )
 
@@ -160,11 +176,31 @@ def run(
         f"{history['train_loss'][-1]:.6f}"
     )
     print(f"Strata testowa: {test_loss:.6f}")
+    print(f"Strata walidacyjna: {history['val_loss'][-1]:.6f}")
 
     if task == "regression":
         y_pred_original = scaler_y.inverse_transform(y_pred)
         rmse = float(np.sqrt(np.mean((y_pred_original - y_test) ** 2)))
         print(f"Test RMSE: {rmse:.6f}")
+        training_x_min = float(np.min(X_train_full_raw[:, 0]))
+        training_x_max = float(np.max(X_train_full_raw[:, 0]))
+        inside_training_range = (
+            (X_test_raw[:, 0] >= training_x_min)
+            & (X_test_raw[:, 0] <= training_x_max)
+        )
+        for is_inside, label in (
+            (True, "inside"),
+            (False, "outside"),
+        ):
+            mask = inside_training_range == is_inside
+            if np.any(mask):
+                range_rmse = float(
+                    np.sqrt(np.mean((y_pred_original[mask] - y_test[mask]) ** 2))
+                )
+                print(
+                    f"Test RMSE {label} training x-range "
+                    f"({int(np.sum(mask))} points): {range_rmse:.6f}"
+                )
     else:
         if y_pred.shape[1] == 1:
             predicted_indices = (y_pred[:, 0] >= 0.5).astype(int)
@@ -184,6 +220,8 @@ def run(
             plot_regression_results(
                 X_train_raw,
                 y_train_raw,
+                X_val_raw,
+                y_val_raw,
                 X_test_raw,
                 y_test_raw,
                 scaler_y.inverse_transform(y_pred),
@@ -196,6 +234,8 @@ def run(
             plot_classification_results(
                 X_train_raw,
                 y_train_raw,
+                X_val_raw,
+                y_val_raw,
                 X_test_raw,
                 y_test_raw,
                 classes,

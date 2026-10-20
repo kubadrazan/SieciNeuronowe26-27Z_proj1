@@ -66,8 +66,9 @@ class Softmax(Activation):
         return exps / np.sum(exps, axis=-1, keepdims=True)
 
     def derivative(self, x: np.ndarray) -> np.ndarray:
-        s = self.forward(x)
-        return s * (1.0 - s)
+        raise NotImplementedError(
+            "Softmax has a Jacobian, not an elementwise derivative; use backward()."
+        )
 
     def backward(self, grad_output: np.ndarray, x: np.ndarray) -> np.ndarray:
         probabilities = self.forward(x)

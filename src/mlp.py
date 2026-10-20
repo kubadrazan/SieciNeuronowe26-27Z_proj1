@@ -2,7 +2,7 @@ import numpy as np
 from activations import get_activation, Activation
 from initializers import get_initializer
 from losses import get_loss, Loss
-from utils import make_rng
+from utils import iterate_minibatches, make_rng
 
 
 class Dense:
@@ -171,16 +171,9 @@ class MLP:
         )
 
         for epoch in range(epochs):
-            n = X.shape[0]
-            indices = np.arange(n)
-            shuffle_rng.shuffle(indices)
-
-            for start_idx in range(0, n, batch_size):
-                end_idx = min(start_idx + batch_size, n)
-                batch_idx = indices[start_idx:end_idx]
-                X_batch = X[batch_idx]
-                y_batch = y[batch_idx]
-
+            for X_batch, y_batch in iterate_minibatches(
+                X, y, batch_size, shuffle_rng
+            ):
                 y_pred_batch = self.forward(X_batch)
 
                 self.backward(y_pred_batch, y_batch)

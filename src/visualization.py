@@ -96,6 +96,8 @@ def plot_weight_evolution(history: dict, output_dir: Path) -> list[Path]:
 def plot_regression_results(
     X_train: np.ndarray,
     y_train: np.ndarray,
+    X_val: np.ndarray,
+    y_val: np.ndarray,
     X_test: np.ndarray,
     y_test: np.ndarray,
     y_pred: np.ndarray,
@@ -117,7 +119,35 @@ def plot_regression_results(
     )
 
     fig, ax = plt.subplots(figsize=(9, 6))
+    train_x_min = float(np.min(X_train[:, 0]))
+    train_x_max = float(np.max(X_train[:, 0]))
+    grid_x_min = float(x_grid[0, 0])
+    grid_x_max = float(x_grid[-1, 0])
+    if grid_x_min < train_x_min:
+        ax.axvspan(
+            grid_x_min,
+            train_x_min,
+            color="orange",
+            alpha=0.12,
+            label="Outside training range",
+        )
+    if train_x_max < grid_x_max:
+        ax.axvspan(
+            train_x_max,
+            grid_x_max,
+            color="orange",
+            alpha=0.12,
+            label="Outside training range",
+        )
     ax.scatter(X_train[:, 0], y_train[:, 0], s=18, alpha=0.65, label="Train")
+    ax.scatter(
+        X_val[:, 0],
+        y_val[:, 0],
+        s=18,
+        alpha=0.75,
+        marker="^",
+        label="Validation",
+    )
     ax.scatter(X_test[:, 0], y_test[:, 0], s=14, alpha=0.45, label="Test targets")
     ax.scatter(
         X_test[:, 0],
@@ -136,6 +166,8 @@ def plot_regression_results(
 def plot_classification_results(
     X_train: np.ndarray,
     y_train: np.ndarray,
+    X_val: np.ndarray,
+    y_val: np.ndarray,
     X_test: np.ndarray,
     y_test: np.ndarray,
     classes: np.ndarray,
@@ -175,6 +207,7 @@ def plot_classification_results(
     )
 
     train_classes = _class_indices(y_train)
+    val_classes = _class_indices(y_val)
     test_classes = _class_indices(y_test)
     ax.scatter(
         X_train[:, 0],
@@ -188,6 +221,19 @@ def plot_classification_results(
         edgecolors="black",
         linewidths=0.3,
         label="Train",
+    )
+    ax.scatter(
+        X_val[:, 0],
+        X_val[:, 1],
+        c=val_classes,
+        cmap=cmap,
+        vmin=0,
+        vmax=max(classes.size - 1, 1),
+        s=30,
+        marker="^",
+        edgecolors="black",
+        linewidths=0.3,
+        label="Validation",
     )
     ax.scatter(
         X_test[:, 0],

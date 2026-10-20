@@ -2,8 +2,7 @@ import json
 from pathlib import Path
 
 from activations import AVAILABLE_ACTIVATIONS
-
-AVAILABLE_LOSSES: tuple[str, ...] = ("mse", "mae", "cce", "bce")
+from losses import AVAILABLE_LOSSES
 
 
 def validate_config(config: dict) -> None:
@@ -48,6 +47,21 @@ def validate_config(config: dict) -> None:
             f"Nieznana funkcja straty '{loss}'. "
             f"Dozwolone opcje: {list(AVAILABLE_LOSSES)}"
         )
+    loss = loss.strip().lower()
+    output_activation = activations[-1].strip().lower()
+    task = data.get("task")
+    if loss == "bce" and (task != "classification" or output_activation != "sigmoid"):
+        raise ValueError(
+            "BCE wymaga zadania klasyfikacji i sigmoidalnej funkcji aktywacji wyjścia."
+        )
+    if loss == "cce" and (task != "classification" or output_activation != "softmax"):
+        raise ValueError(
+            "CCE wymaga zadania klasyfikacji i funkcji aktywacji softmax na wyjściu."
+        )
+    if task == "classification" and output_activation not in ("sigmoid", "softmax"):
+        raise ValueError(
+            "Klasyfikacja wymaga sigmoidalnej lub softmaxowej funkcji aktywacji wyjścia."
+        )
 
     if train.get("learning_rate", 0) <= 0:
         raise ValueError("Parametr 'learning_rate' musi być większy od 0.")
@@ -62,6 +76,14 @@ def validate_config(config: dict) -> None:
 
     if not isinstance(train.get("batch_size"), int) or train["batch_size"] <= 0:
         raise ValueError("Parametr 'batch_size' musi być dodatnią liczbą całkowitą.")
+    validation_fraction = train.get("validation_fraction", 0.2)
+    if (
+        not isinstance(validation_fraction, (int, float))
+        or not 0.0 < validation_fraction < 1.0
+    ):
+        raise ValueError(
+            "Parametr 'validation_fraction' musi być liczbą z zakresu (0, 1)."
+        )
 
     # Walidacja danych
     if not isinstance(data, dict) or not data:
