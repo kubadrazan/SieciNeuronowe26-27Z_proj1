@@ -2,13 +2,13 @@ import json
 from pathlib import Path
 
 from activations import AVAILABLE_ACTIVATIONS
-
-AVAILABLE_LOSSES: tuple[str, ...] = ("mse", "mae", "cce", "bce")
+from losses import AVAILABLE_LOSSES
 
 
 def validate_config(config: dict) -> None:
     net = config.get("network", {})
     train = config.get("training", {})
+    data = config.get("data", {})
 
     layers = net.get("layers", [])
     activations = net.get("activations", [])
@@ -47,15 +47,55 @@ def validate_config(config: dict) -> None:
             f"Nieznana funkcja straty '{loss}'. "
             f"Dozwolone opcje: {list(AVAILABLE_LOSSES)}"
         )
+    loss = loss.strip().lower()
+    output_activation = activations[-1].strip().lower()
+    task = data.get("task")
+    if loss == "bce" and (task != "classification" or output_activation != "sigmoid"):
+        raise ValueError(
+            "BCE wymaga zadania klasyfikacji i sigmoidalnej funkcji aktywacji wyjścia."
+        )
+    if loss == "cce" and (task != "classification" or output_activation != "softmax"):
+        raise ValueError(
+            "CCE wymaga zadania klasyfikacji i funkcji aktywacji softmax na wyjściu."
+        )
+    if task == "classification" and output_activation not in ("sigmoid", "softmax"):
+        raise ValueError(
+            "Klasyfikacja wymaga sigmoidalnej lub softmaxowej funkcji aktywacji wyjścia."
+        )
 
     if train.get("learning_rate", 0) <= 0:
         raise ValueError("Parametr 'learning_rate' musi być większy od 0.")
+
+    if "momentum" in train:
+        momentum = train["momentum"]
+        if not isinstance(momentum, (int, float)) or not (0.0 <= momentum < 1.0):
+            raise ValueError(f"Parametr 'momentum' musi być liczbą z zakresu [0, 1), otrzymano: {momentum}")
 
     if not isinstance(train.get("epochs"), int) or train["epochs"] <= 0:
         raise ValueError("Parametr 'epochs' musi być dodatnią liczbą całkowitą.")
 
     if not isinstance(train.get("batch_size"), int) or train["batch_size"] <= 0:
         raise ValueError("Parametr 'batch_size' musi być dodatnią liczbą całkowitą.")
+    validation_fraction = train.get("validation_fraction", 0.2)
+    if (
+        not isinstance(validation_fraction, (int, float))
+        or not 0.0 < validation_fraction < 1.0
+    ):
+        raise ValueError(
+            "Parametr 'validation_fraction' musi być liczbą z zakresu (0, 1)."
+        )
+
+    # Walidacja danych
+    if not isinstance(data, dict) or not data:
+        raise ValueError("Brak wymaganej sekcji 'data' lub jest ona pusta w konfiguracji.")
+
+    required_data_keys = ["task", "train_file", "test_file"]
+    for key in required_data_keys:
+        if key not in data:
+            raise ValueError(f"Brak wymaganego klucza '{key}' w sekcji 'data'.")
+
+    if data["task"] not in ["regression", "classification"]:
+        raise ValueError(f"Nieobsługiwane zadanie w 'data.task': {data['task']}. Dozwolone: 'regression', 'classification'.")
 
 
 def load_config(config_path: Path) -> dict:
@@ -68,11 +108,12 @@ def load_config(config_path: Path) -> dict:
 def print_config(config: dict) -> None:
     net = config["network"]
     train = config["training"]
+    data = config["data"]
 
     print(f"Wczytano konfigurację (seed={config['seed']}):")
     print(f"  Sieć: warstwy={net['layers']}, aktywacje={net['activations']}, bias={net['use_bias']}")
     print(
         f"  Trening: loss={train['loss']}, lr={train['learning_rate']}, "
-        f"epoki={train['epochs']}, batch_size={train['batch_size']}"
+        f"momentum={train.get('momentum', 0.0)}, epoki={train['epochs']}, batch_size={train['batch_size']}"
     )
-
+    print(f"  Dane: task={data['task']}, train={data['train_file']}, test={data['test_file']}")
