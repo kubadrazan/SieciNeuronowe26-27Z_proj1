@@ -1,20 +1,20 @@
 {
   "seed": 42,
   "network": {
-    "layers": [1, 16, 8, 1],
-    "activations": ["relu", "relu", "linear"],
+    "layers": [2, 16, 8, 1],
+    "activations": ["sigmoid", "sigmoid", "sigmoid"],
     "use_bias": true
   },
   "training": {
-    "loss": "mse",
-    "learning_rate": 0.01,
+    "loss": "bce",
+    "learning_rate": 0.05,
     "momentum": 0.9,
-    "epochs": 500,
+    "epochs": 100,
     "batch_size": 32
   },
   "data": {
-    "task": "regression",
-    "train_file": "data/regression/data.cube.train.100.csv",
-    "test_file": "data/regression/data.cube.test.100.csv"
+    "task": "classification",
+    "train_file": "data/classification/data.simple.train.500.csv",
+    "test_file": "data/classification/data.simple.test.500.csv"
   }
 }

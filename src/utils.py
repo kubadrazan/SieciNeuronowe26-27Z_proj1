@@ -57,7 +57,11 @@ def load_classification_csv(filepath: str) -> tuple[np.ndarray, np.ndarray]:
     data = np.loadtxt(filepath, delimiter=",", skiprows=1)
     if data.ndim == 1:
         data = data.reshape(1, -1)
-    X = data[:, :-2]
+    if data.shape[1] < 2:
+        raise ValueError(
+            f"Plik klasyfikacyjny musi zawierać co najmniej jedną cechę i etykietę: {filepath}"
+        )
+    X = data[:, :-1]
     y = data[:, -1:]
     return X, y
 

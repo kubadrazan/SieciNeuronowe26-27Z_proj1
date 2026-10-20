@@ -12,6 +12,9 @@ class Activation(ABC):
     def derivative(self, x: np.ndarray) -> np.ndarray:  # backward
         pass
 
+    def backward(self, grad_output: np.ndarray, x: np.ndarray) -> np.ndarray:
+        return grad_output * self.derivative(x)
+
 
 class Sigmoid(Activation):
     """Funkcja sigmoidalna: f(x) = 1 / (1 + exp(-x))."""
@@ -65,6 +68,11 @@ class Softmax(Activation):
     def derivative(self, x: np.ndarray) -> np.ndarray:
         s = self.forward(x)
         return s * (1.0 - s)
+
+    def backward(self, grad_output: np.ndarray, x: np.ndarray) -> np.ndarray:
+        probabilities = self.forward(x)
+        projection = np.sum(grad_output * probabilities, axis=-1, keepdims=True)
+        return probabilities * (grad_output - projection)
 
 
 ACTIVATION_REGISTRY: dict[str, type[Activation]] = {

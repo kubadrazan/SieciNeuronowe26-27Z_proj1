@@ -47,7 +47,7 @@ class Dense:
         return self.activation.forward(self.z)
 
     def backward(self, da: np.ndarray) -> np.ndarray:
-        dz = da * self.activation.derivative(self.z)
+        dz = self.activation.backward(da, self.z)
         self.dW = self.a_prev.T @ dz
         if self.use_bias:
             self.db = dz.sum(axis=0, keepdims=True)
@@ -137,7 +137,7 @@ class MLP:
         else:
             dL_dypred = self.loss_fn.backward(y_pred, y_true)
             last_layer = self.dense_layers[-1]
-            delta = dL_dypred * last_layer.activation.derivative(last_layer.z)
+            delta = last_layer.activation.backward(dL_dypred, last_layer.z)
 
         current_delta = delta
         for i in reversed(range(len(self.dense_layers))):
