@@ -12,6 +12,12 @@ from utils import (
     load_regression_csv,
     one_hot,
 )
+from visualization import (
+    plot_classification_results,
+    plot_loss,
+    plot_regression_results,
+    plot_weight_evolution,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -22,12 +28,22 @@ def parse_args() -> argparse.Namespace:
         default=Path(__file__).resolve().parent.parent / "config" / "config.json",
         help="Ścieżka do pliku konfiguracyjnego JSON.",
     )
+    parser.add_argument(
+        "--plot-dir",
+        type=Path,
+        help="Katalog zapisu wykresów (domyślnie plots/<nazwa-konfiguracji>).",
+    )
+    parser.add_argument(
+        "--no-plots",
+        action="store_true",
+        help="Pomiń generowanie wykresów.",
+    )
     return parser.parse_args()
 
 
 def encode_classification_targets(
     y_train: np.ndarray, y_test: np.ndarray, output_size: int
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     classes = np.unique(y_train)
     if classes.size < 2:
         raise ValueError("Klasyfikacja wymaga co najmniej dwóch klas w zbiorze treningowym.")
@@ -46,11 +62,13 @@ def encode_classification_targets(
         return (
             train_indices.reshape(-1, 1).astype(np.float64),
             test_indices.reshape(-1, 1).astype(np.float64),
+            classes,
         )
     if output_size == classes.size:
         return (
             one_hot(train_indices, classes.size),
             one_hot(test_indices, classes.size),
+            classes,
         )
 
     raise ValueError(
@@ -59,7 +77,11 @@ def encode_classification_targets(
     )
 
 
-def run(config_path: Path) -> None:
+def run(
+    config_path: Path,
+    plot_dir: Path | None = None,
+    create_plots: bool = True,
+) -> None:
     config = load_config(config_path)
     print_config(config)
 
@@ -88,7 +110,7 @@ def run(config_path: Path) -> None:
         )
 
     if task == "classification":
-        y_train, y_test = encode_classification_targets(
+        y_train, y_test, classes = encode_classification_targets(
             y_train, y_test, model.layers[-1]
         )
     elif model.layers[-1] != y_train.shape[1]:
@@ -96,6 +118,11 @@ def run(config_path: Path) -> None:
             f"Sieć ma {model.layers[-1]} neuronów wyjściowych, ale dane regresyjne "
             f"zawierają {y_train.shape[1]} wartości docelowych."
         )
+
+    X_train_raw = X_train.copy()
+    X_test_raw = X_test.copy()
+    y_train_raw = y_train.copy()
+    y_test_raw = y_test.copy()
 
     scaler_X = Standardizer()
     X_train = scaler_X.fit_transform(X_train)
@@ -123,7 +150,7 @@ def run(config_path: Path) -> None:
         epochs=training["epochs"],
         batch_size=training["batch_size"],
         optimizer=optimizer,
-        record_weights=False,
+        record_weights=create_plots,
     )
 
     y_pred = model.predict(X_test)
@@ -148,6 +175,37 @@ def run(config_path: Path) -> None:
         accuracy = float(np.mean(predicted_indices == true_indices))
         print(f"Test accuracy: {accuracy:.4f}")
 
+    if create_plots:
+        if plot_dir is None:
+            plot_dir = root / "plots" / config_path.stem
+        plot_loss(history, plot_dir / "loss.png")
+        plot_weight_evolution(history, plot_dir)
+        if task == "regression":
+            plot_regression_results(
+                X_train_raw,
+                y_train_raw,
+                X_test_raw,
+                y_test_raw,
+                scaler_y.inverse_transform(y_pred),
+                model,
+                scaler_X,
+                scaler_y,
+                plot_dir / "regression_fit.png",
+            )
+        else:
+            plot_classification_results(
+                X_train_raw,
+                y_train_raw,
+                X_test_raw,
+                y_test_raw,
+                classes,
+                model,
+                scaler_X,
+                plot_dir / "classification_boundary.png",
+            )
+        print(f"Wykresy zapisano w: {plot_dir}")
+
 
 if __name__ == "__main__":
-    run(parse_args().config)
+    args = parse_args()
+    run(args.config, args.plot_dir, create_plots=not args.no_plots)
