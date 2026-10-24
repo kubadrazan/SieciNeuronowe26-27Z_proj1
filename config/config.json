@@ -2,14 +2,19 @@
   "seed": 42,
   "network": {
     "layers": [2, 16, 8, 1],
-    "activations": ["sigmoid", "sigmoid", "linear"],
+    "activations": ["sigmoid", "sigmoid", "sigmoid"],
     "use_bias": true
   },
   "training": {
-    "loss": "mse",
-    "learning_rate": 0.01,
-    "epochs": 1000,
+    "loss": "bce",
+    "learning_rate": 0.05,
+    "momentum": 0.9,
+    "epochs": 100,
     "batch_size": 32
+  },
+  "data": {
+    "task": "classification",
+    "train_file": "data/classification/data.simple.train.500.csv",
+    "test_file": "data/classification/data.simple.test.500.csv"
   }
 }
-
