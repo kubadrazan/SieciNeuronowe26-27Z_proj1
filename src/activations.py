@@ -9,7 +9,7 @@ class Activation(ABC):
         pass
 
     @abstractmethod
-    def derivative(self, x: np.ndarray) -> np.ndarray:  # backward
+    def derivative(self, x: np.ndarray) -> np.ndarray:
         pass
 
     def backward(self, grad_output: np.ndarray, x: np.ndarray) -> np.ndarray:

@@ -1,9 +1,10 @@
 import argparse
+import time
 from pathlib import Path
 
 import numpy as np
 
-from config_loader import load_config, print_config
+from config_loader import load_config, print_config, validate_config
 from mlp import build_model
 from optimizers import SGD
 from utils import (
@@ -79,13 +80,27 @@ def encode_classification_targets(
     )
 
 
-def run(
-    config_path: Path,
+def _compute_classification_accuracy(
+    y_pred: np.ndarray, y_true: np.ndarray
+) -> float:
+    if y_pred.shape[1] == 1:
+        predicted_indices = (y_pred[:, 0] >= 0.5).astype(int)
+        true_indices = y_true[:, 0].astype(int)
+    else:
+        predicted_indices = np.argmax(y_pred, axis=1)
+        true_indices = np.argmax(y_true, axis=1)
+    return float(np.mean(predicted_indices == true_indices))
+
+
+def run_from_config(
+    config: dict,
     plot_dir: Path | None = None,
-    create_plots: bool = True,
-) -> None:
-    config = load_config(config_path)
-    print_config(config)
+    create_plots: bool = False,
+    verbose: bool = True,
+) -> dict:
+    validate_config(config)
+    if verbose:
+        print_config(config)
 
     root = Path(__file__).resolve().parent.parent
     data_cfg = config["data"]
@@ -155,9 +170,11 @@ def run(
         momentum=training.get("momentum", 0.0),
     )
 
-    print(
-        f"\nRozpoczynanie trenowania ({training['epochs']} epok, zadanie: {task})..."
-    )
+    if verbose:
+        print(
+            f"\nRozpoczynanie trenowania ({training['epochs']} epok, zadanie: {task})..."
+        )
+    start_time = time.perf_counter()
     history = model.fit(
         X_train,
         y_train,
@@ -168,20 +185,48 @@ def run(
         y_val=y_val,
         record_weights=create_plots,
     )
+    elapsed_sec = time.perf_counter() - start_time
 
     y_pred = model.predict(X_test)
-    test_loss = model.loss_fn.forward(y_pred, y_test_for_loss)
-    print(
-        f"Trening zakończony! Końcowa strata treningowa: "
-        f"{history['train_loss'][-1]:.6f}"
-    )
-    print(f"Strata testowa: {test_loss:.6f}")
-    print(f"Strata walidacyjna: {history['val_loss'][-1]:.6f}")
+    test_loss = float(model.loss_fn.forward(y_pred, y_test_for_loss))
+    train_loss_final = float(history["train_loss"][-1])
+    val_loss_final = float(history["val_loss"][-1])
+    val_losses = [float(v) for v in history["val_loss"] if v is not None]
+    val_loss_best = float(np.min(val_losses)) if val_losses else val_loss_final
+    best_epoch = int(np.argmin(val_losses) + 1) if val_losses else len(history["train_loss"])
+
+    if verbose:
+        print(
+            f"Trening zakończony! Końcowa strata treningowa: "
+            f"{train_loss_final:.6f}"
+        )
+        print(f"Strata testowa: {test_loss:.6f}")
+        print(f"Strata walidacyjna: {val_loss_final:.6f}")
+
+    results: dict = {
+        "train_loss_final": train_loss_final,
+        "val_loss_final": val_loss_final,
+        "val_loss_best": val_loss_best,
+        "best_epoch": best_epoch,
+        "test_loss": test_loss,
+        "time_sec": elapsed_sec,
+        "train_acc": None,
+        "val_acc": None,
+        "test_acc": None,
+        "test_rmse": None,
+        "test_mae": None,
+        "test_rmse_inside": None,
+        "test_rmse_outside": None,
+    }
 
     if task == "regression":
         y_pred_original = scaler_y.inverse_transform(y_pred)
         rmse = float(np.sqrt(np.mean((y_pred_original - y_test) ** 2)))
-        print(f"Test RMSE: {rmse:.6f}")
+        mae = float(np.mean(np.abs(y_pred_original - y_test)))
+        results["test_rmse"] = rmse
+        results["test_mae"] = mae
+        if verbose:
+            print(f"Test RMSE: {rmse:.6f}")
         training_x_min = float(np.min(X_train_full_raw[:, 0]))
         training_x_max = float(np.max(X_train_full_raw[:, 0]))
         inside_training_range = (
@@ -197,23 +242,27 @@ def run(
                 range_rmse = float(
                     np.sqrt(np.mean((y_pred_original[mask] - y_test[mask]) ** 2))
                 )
-                print(
-                    f"Test RMSE {label} training x-range "
-                    f"({int(np.sum(mask))} points): {range_rmse:.6f}"
-                )
+                results[f"test_rmse_{label}"] = range_rmse
+                if verbose:
+                    print(
+                        f"Test RMSE {label} training x-range "
+                        f"({int(np.sum(mask))} points): {range_rmse:.6f}"
+                    )
     else:
-        if y_pred.shape[1] == 1:
-            predicted_indices = (y_pred[:, 0] >= 0.5).astype(int)
-            true_indices = y_test[:, 0].astype(int)
-        else:
-            predicted_indices = np.argmax(y_pred, axis=1)
-            true_indices = np.argmax(y_test, axis=1)
-        accuracy = float(np.mean(predicted_indices == true_indices))
-        print(f"Test accuracy: {accuracy:.4f}")
+        y_train_pred = model.predict(X_train)
+        y_val_pred = model.predict(X_val)
+        train_acc = _compute_classification_accuracy(y_train_pred, y_train)
+        val_acc = _compute_classification_accuracy(y_val_pred, y_val)
+        test_acc = _compute_classification_accuracy(y_pred, y_test)
+        results["train_acc"] = train_acc
+        results["val_acc"] = val_acc
+        results["test_acc"] = test_acc
+        if verbose:
+            print(f"Test accuracy: {test_acc:.4f}")
 
     if create_plots:
         if plot_dir is None:
-            plot_dir = root / "plots" / config_path.stem
+            plot_dir = root / "plots" / "default"
         plot_loss(history, plot_dir / "loss.png")
         plot_weight_evolution(history, plot_dir)
         if task == "regression":
@@ -243,7 +292,27 @@ def run(
                 scaler_X,
                 plot_dir / "classification_boundary.png",
             )
-        print(f"Wykresy zapisano w: {plot_dir}")
+        if verbose:
+            print(f"Wykresy zapisano w: {plot_dir}")
+
+    return results
+
+
+def run(
+    config_path: Path,
+    plot_dir: Path | None = None,
+    create_plots: bool = True,
+) -> dict:
+    config = load_config(config_path)
+    root = Path(__file__).resolve().parent.parent
+    if create_plots and plot_dir is None:
+        plot_dir = root / "plots" / config_path.stem
+    return run_from_config(
+        config,
+        plot_dir=plot_dir,
+        create_plots=create_plots,
+        verbose=True,
+    )
 
 
 if __name__ == "__main__":
