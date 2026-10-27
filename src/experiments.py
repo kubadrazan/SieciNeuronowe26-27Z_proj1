@@ -106,7 +106,9 @@ def build_experiment_spec(
     else:
         if loss == "bce" or output_activation == "sigmoid":
             resolved_out_act = "sigmoid"
-            resolved_n_out = n_out or (1 if meta["n_classes"] == 2 else meta["n_classes"])
+            resolved_n_out = n_out or (
+                1 if meta["n_classes"] == 2 else meta["n_classes"]
+            )
         else:
             resolved_out_act = output_activation or "softmax"
             resolved_n_out = n_out or meta["n_classes"]
@@ -157,7 +159,6 @@ def generate_activations_study(
     seeds: list[int],
     epochs: int,
 ) -> list[dict]:
-    """2.1.4 (1): Wpływ funkcji aktywacji wewnątrz sieci (sigmoid, tanh, relu)."""
     specs: list[dict] = []
     hidden_activations = ["sigmoid", "tanh", "relu"]
     architectures = [
@@ -194,20 +195,19 @@ def generate_architecture_study(
     seeds: list[int],
     epochs: int,
 ) -> list[dict]:
-    """2.1.4 (2): Wpływ liczby warstw ukrytych (0 do 4) oraz ich liczności."""
     specs: list[dict] = []
     architectures: list[list[int]] = [
-        [],                  
-        [4],                 
-        [16],                
-        [64],                
-        [8, 4],              
-        [16, 8],             
-        [32, 16],            
-        [16, 8, 4],          
-        [32, 16, 8],         
-        [16, 16, 8, 4],      
-        [32, 16, 16, 8],     
+        [],
+        [4],
+        [16],
+        [64],
+        [8, 4],
+        [16, 8],
+        [32, 16],
+        [16, 8, 4],
+        [32, 16, 8],
+        [16, 16, 8, 4],
+        [32, 16, 16, 8],
     ]
     hidden_activations = ["tanh", "relu"]
 
@@ -240,7 +240,6 @@ def generate_losses_study(
     seeds: list[int],
     epochs: int,
 ) -> list[dict]:
-    """2.1.4 (3): Wpływ miary błędu na wyjściu sieci (2 dla regresji, 2 dla klasyfikacji)."""
     specs: list[dict] = []
     hidden_activations = ["sigmoid", "tanh", "relu"]
     hidden_layers = [16, 8]
@@ -302,7 +301,9 @@ def run_experiments(
 ) -> None:
     output_csv.parent.mkdir(parents=True, exist_ok=True)
     total = len(specs)
-    print(f"Rozpoczynanie {total} eksperymentów. Wyniki będą zapisywane do: {output_csv}\n")
+    print(
+        f"Rozpoczynanie {total} eksperymentów. Wyniki będą zapisywane do: {output_csv}\n"
+    )
 
     with open(output_csv, mode="w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=CSV_COLUMNS)
@@ -316,7 +317,9 @@ def run_experiments(
             data = config["data"]
 
             hidden_layers = spec["hidden_layers"]
-            hidden_str = "-".join(str(x) for x in hidden_layers) if hidden_layers else "none"
+            hidden_str = (
+                "-".join(str(x) for x in hidden_layers) if hidden_layers else "none"
+            )
             layers_full_str = "-".join(str(x) for x in net["layers"])
 
             metrics = run_from_config(
@@ -374,7 +377,9 @@ def run_experiments(
                 f"loss={train['loss']:<3} | {score_info} ({metrics['time_sec']:.2f}s)"
             )
 
-    print(f"\nZakończono wszystkie eksperymenty! Zapisano {total} wierszy w: {output_csv}")
+    print(
+        f"\nZakończono wszystkie eksperymenty! Zapisano {total} wierszy w: {output_csv}"
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -417,7 +422,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path(__file__).resolve().parent.parent / "results" / "experiments_results.csv",
+        default=Path(__file__).resolve().parent.parent
+        / "results"
+        / "experiments_results.csv",
         help="Ścieżka do wyjściowego pliku CSV.",
     )
     return parser.parse_args()
@@ -429,11 +436,15 @@ if __name__ == "__main__":
     all_specs: list[dict] = []
     if args.study in ("all", "activations"):
         all_specs.extend(
-            generate_activations_study(args.datasets, args.size, args.seeds, args.epochs)
+            generate_activations_study(
+                args.datasets, args.size, args.seeds, args.epochs
+            )
         )
     if args.study in ("all", "architecture"):
         all_specs.extend(
-            generate_architecture_study(args.datasets, args.size, args.seeds, args.epochs)
+            generate_architecture_study(
+                args.datasets, args.size, args.seeds, args.epochs
+            )
         )
     if args.study in ("all", "losses"):
         all_specs.extend(
@@ -441,4 +452,3 @@ if __name__ == "__main__":
         )
 
     run_experiments(all_specs, args.output)
-

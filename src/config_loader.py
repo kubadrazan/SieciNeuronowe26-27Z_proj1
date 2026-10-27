@@ -39,7 +39,9 @@ def validate_config(config: dict) -> None:
             )
 
     if not isinstance(net.get("use_bias"), bool):
-        raise ValueError("Parametr 'use_bias' musi być wartością logiczną (true/false).")
+        raise ValueError(
+            "Parametr 'use_bias' musi być wartością logiczną (true/false)."
+        )
 
     loss = train.get("loss")
     if not isinstance(loss, str) or loss.strip().lower() not in AVAILABLE_LOSSES:
@@ -69,7 +71,9 @@ def validate_config(config: dict) -> None:
     if "momentum" in train:
         momentum = train["momentum"]
         if not isinstance(momentum, (int, float)) or not (0.0 <= momentum < 1.0):
-            raise ValueError(f"Parametr 'momentum' musi być liczbą z zakresu [0, 1), otrzymano: {momentum}")
+            raise ValueError(
+                f"Parametr 'momentum' musi być liczbą z zakresu [0, 1), otrzymano: {momentum}"
+            )
 
     if not isinstance(train.get("epochs"), int) or train["epochs"] <= 0:
         raise ValueError("Parametr 'epochs' musi być dodatnią liczbą całkowitą.")
@@ -87,7 +91,9 @@ def validate_config(config: dict) -> None:
 
     # Walidacja danych
     if not isinstance(data, dict) or not data:
-        raise ValueError("Brak wymaganej sekcji 'data' lub jest ona pusta w konfiguracji.")
+        raise ValueError(
+            "Brak wymaganej sekcji 'data' lub jest ona pusta w konfiguracji."
+        )
 
     required_data_keys = ["task", "train_file", "test_file"]
     for key in required_data_keys:
@@ -95,7 +101,9 @@ def validate_config(config: dict) -> None:
             raise ValueError(f"Brak wymaganego klucza '{key}' w sekcji 'data'.")
 
     if data["task"] not in ["regression", "classification"]:
-        raise ValueError(f"Nieobsługiwane zadanie w 'data.task': {data['task']}. Dozwolone: 'regression', 'classification'.")
+        raise ValueError(
+            f"Nieobsługiwane zadanie w 'data.task': {data['task']}. Dozwolone: 'regression', 'classification'."
+        )
 
 
 def load_config(config_path: Path) -> dict:
@@ -111,9 +119,13 @@ def print_config(config: dict) -> None:
     data = config["data"]
 
     print(f"Wczytano konfigurację (seed={config['seed']}):")
-    print(f"  Sieć: warstwy={net['layers']}, aktywacje={net['activations']}, bias={net['use_bias']}")
+    print(
+        f"  Sieć: warstwy={net['layers']}, aktywacje={net['activations']}, bias={net['use_bias']}"
+    )
     print(
         f"  Trening: loss={train['loss']}, lr={train['learning_rate']}, "
         f"momentum={train.get('momentum', 0.0)}, epoki={train['epochs']}, batch_size={train['batch_size']}"
     )
-    print(f"  Dane: task={data['task']}, train={data['train_file']}, test={data['test_file']}")
+    print(
+        f"  Dane: task={data['task']}, train={data['train_file']}, test={data['test_file']}"
+    )

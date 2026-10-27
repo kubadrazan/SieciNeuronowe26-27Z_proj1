@@ -49,7 +49,9 @@ def encode_classification_targets(
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     classes = np.unique(y_train)
     if classes.size < 2:
-        raise ValueError("Klasyfikacja wymaga co najmniej dwóch klas w zbiorze treningowym.")
+        raise ValueError(
+            "Klasyfikacja wymaga co najmniej dwóch klas w zbiorze treningowym."
+        )
 
     unknown_test_classes = np.setdiff1d(np.unique(y_test), classes)
     if unknown_test_classes.size:
@@ -80,9 +82,7 @@ def encode_classification_targets(
     )
 
 
-def _compute_classification_accuracy(
-    y_pred: np.ndarray, y_true: np.ndarray
-) -> float:
+def _compute_classification_accuracy(y_pred: np.ndarray, y_true: np.ndarray) -> float:
     if y_pred.shape[1] == 1:
         predicted_indices = (y_pred[:, 0] >= 0.5).astype(int)
         true_indices = y_true[:, 0].astype(int)
@@ -112,13 +112,17 @@ def run_from_config(
         X_train, y_train = load_regression_csv(str(train_path))
         X_test, y_test = load_regression_csv(str(test_path))
         if y_train.shape[1] != 1 or y_test.shape[1] != 1:
-            raise ValueError("Regresja R -> R wymaga dokładnie jednej wartości docelowej.")
+            raise ValueError(
+                "Regresja R -> R wymaga dokładnie jednej wartości docelowej."
+            )
     else:
         X_train, y_train = load_classification_csv(str(train_path))
         X_test, y_test = load_classification_csv(str(test_path))
 
     if X_train.shape[1] != X_test.shape[1]:
-        raise ValueError("Liczba cech w zbiorach treningowym i testowym musi być taka sama.")
+        raise ValueError(
+            "Liczba cech w zbiorach treningowym i testowym musi być taka sama."
+        )
 
     model = build_model(config)
     if model.layers[0] != X_train.shape[1]:
@@ -193,12 +197,13 @@ def run_from_config(
     val_loss_final = float(history["val_loss"][-1])
     val_losses = [float(v) for v in history["val_loss"] if v is not None]
     val_loss_best = float(np.min(val_losses)) if val_losses else val_loss_final
-    best_epoch = int(np.argmin(val_losses) + 1) if val_losses else len(history["train_loss"])
+    best_epoch = (
+        int(np.argmin(val_losses) + 1) if val_losses else len(history["train_loss"])
+    )
 
     if verbose:
         print(
-            f"Trening zakończony! Końcowa strata treningowa: "
-            f"{train_loss_final:.6f}"
+            f"Trening zakończony! Końcowa strata treningowa: " f"{train_loss_final:.6f}"
         )
         print(f"Strata testowa: {test_loss:.6f}")
         print(f"Strata walidacyjna: {val_loss_final:.6f}")
@@ -229,9 +234,8 @@ def run_from_config(
             print(f"Test RMSE: {rmse:.6f}")
         training_x_min = float(np.min(X_train_full_raw[:, 0]))
         training_x_max = float(np.max(X_train_full_raw[:, 0]))
-        inside_training_range = (
-            (X_test_raw[:, 0] >= training_x_min)
-            & (X_test_raw[:, 0] <= training_x_max)
+        inside_training_range = (X_test_raw[:, 0] >= training_x_min) & (
+            X_test_raw[:, 0] <= training_x_max
         )
         for is_inside, label in (
             (True, "inside"),

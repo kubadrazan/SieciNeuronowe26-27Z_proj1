@@ -44,12 +44,8 @@ def plot_weight_evolution(history: dict, output_dir: Path) -> list[Path]:
     output_paths = []
     for layer_index in range(len(weights[0])):
         fig, ax = plt.subplots(figsize=(10, 6))
-        layer_weights = np.stack(
-            [epoch[layer_index]["W"].ravel() for epoch in weights]
-        )
-        colors = plt.get_cmap("turbo")(
-            np.linspace(0.0, 1.0, layer_weights.shape[1])
-        )
+        layer_weights = np.stack([epoch[layer_index]["W"].ravel() for epoch in weights])
+        colors = plt.get_cmap("turbo")(np.linspace(0.0, 1.0, layer_weights.shape[1]))
         for weight_index in range(layer_weights.shape[1]):
             ax.plot(
                 epochs,
@@ -67,9 +63,7 @@ def plot_weight_evolution(history: dict, output_dir: Path) -> list[Path]:
         )
 
         if "b" in weights[0][layer_index]:
-            biases = np.stack(
-                [epoch[layer_index]["b"].ravel() for epoch in weights]
-            )
+            biases = np.stack([epoch[layer_index]["b"].ravel() for epoch in weights])
             for bias_index in range(biases.shape[1]):
                 ax.plot(
                     epochs,
@@ -107,16 +101,16 @@ def plot_regression_results(
     output_path: Path,
 ) -> None:
     if X_train.shape[1] != 1 or y_train.shape[1] != 1:
-        raise ValueError("Wykres regresji obsługuje jedną cechę i jedną wartość docelową.")
+        raise ValueError(
+            "Wykres regresji obsługuje jedną cechę i jedną wartość docelową."
+        )
 
     x_grid = np.linspace(
         min(float(np.min(X_train)), float(np.min(X_test))),
         max(float(np.max(X_train)), float(np.max(X_test))),
         500,
     ).reshape(-1, 1)
-    y_grid = scaler_y.inverse_transform(
-        model.predict(scaler_X.transform(x_grid))
-    )
+    y_grid = scaler_y.inverse_transform(model.predict(scaler_X.transform(x_grid)))
 
     fig, ax = plt.subplots(figsize=(9, 6))
     train_x_min = float(np.min(X_train[:, 0]))

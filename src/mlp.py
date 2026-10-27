@@ -133,7 +133,7 @@ class MLP:
         if last_act_name == "sigmoid" and loss_name == "bce":
             delta = (y_pred - y_true) / (n * k)
         elif last_act_name == "softmax" and loss_name == "cce":
-            delta = (y_pred - y_true) / n 
+            delta = (y_pred - y_true) / n
         else:
             dL_dypred = self.loss_fn.backward(y_pred, y_true)
             last_layer = self.dense_layers[-1]
@@ -144,7 +144,11 @@ class MLP:
             layer = self.dense_layers[i]
             if i == len(self.dense_layers) - 1:
                 layer.dW = layer.a_prev.T @ current_delta
-                layer.db = current_delta.sum(axis=0, keepdims=True) if layer.use_bias and layer.b is not None else None
+                layer.db = (
+                    current_delta.sum(axis=0, keepdims=True)
+                    if layer.use_bias and layer.b is not None
+                    else None
+                )
                 current_delta = current_delta @ layer.W.T
             else:
                 current_delta = layer.backward(current_delta)
@@ -166,14 +170,10 @@ class MLP:
             "weights": [] if record_weights else None,
         }
 
-        shuffle_rng = np.random.default_rng(
-            int(self.rng.integers(0, 2**31 - 1))
-        )
+        shuffle_rng = np.random.default_rng(int(self.rng.integers(0, 2**31 - 1)))
 
         for epoch in range(epochs):
-            for X_batch, y_batch in iterate_minibatches(
-                X, y, batch_size, shuffle_rng
-            ):
+            for X_batch, y_batch in iterate_minibatches(X, y, batch_size, shuffle_rng):
                 y_pred_batch = self.forward(X_batch)
 
                 self.backward(y_pred_batch, y_batch)
@@ -201,6 +201,7 @@ class MLP:
                 history["weights"].append(epoch_weights)
 
         return history
+
 
 def build_model(config: dict) -> MLP:
     net_config = config["network"]

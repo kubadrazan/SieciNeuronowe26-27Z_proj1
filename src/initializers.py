@@ -11,16 +11,12 @@ def he_normal(n_in: int, n_out: int, rng: np.random.Generator) -> np.ndarray:
     return rng.normal(0.0, std, size=(n_in, n_out))
 
 
-def zeros(n_in: int, n_out: int, rng: np.random.Generator) -> np.ndarray:
-    return np.zeros((n_in, n_out))
-
-
 def get_initializer(activation_name: str):
     if not isinstance(activation_name, str):
         raise ValueError(
             f"Nazwa aktywacji musi być tekstem, otrzymano: {type(activation_name).__name__}"
         )
-    
+
     key = activation_name.strip().lower()
     if key == "relu":
         return he_normal

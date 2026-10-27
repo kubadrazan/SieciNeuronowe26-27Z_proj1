@@ -3,7 +3,6 @@ import numpy as np
 
 
 class Activation(ABC):
-
     @abstractmethod
     def forward(self, x: np.ndarray) -> np.ndarray:
         pass
@@ -17,8 +16,6 @@ class Activation(ABC):
 
 
 class Sigmoid(Activation):
-    """Funkcja sigmoidalna: f(x) = 1 / (1 + exp(-x))."""
-
     def forward(self, x: np.ndarray) -> np.ndarray:
         x_clipped = np.clip(x, -500, 500)
         return 1.0 / (1.0 + np.exp(-x_clipped))
@@ -29,8 +26,6 @@ class Sigmoid(Activation):
 
 
 class Tanh(Activation):
-    """Tangens hiperboliczny: f(x) = tanh(x)."""
-
     def forward(self, x: np.ndarray) -> np.ndarray:
         return np.tanh(x)
 
@@ -40,8 +35,6 @@ class Tanh(Activation):
 
 
 class ReLU(Activation):
-    """Rectified Linear Unit: f(x) = max(0, x)."""
-
     def forward(self, x: np.ndarray) -> np.ndarray:
         return np.maximum(0.0, x)
 
@@ -50,8 +43,6 @@ class ReLU(Activation):
 
 
 class Linear(Activation):
-    """Funkcja liniowa: f(x) = x."""
-
     def forward(self, x: np.ndarray) -> np.ndarray:
         return x
 
@@ -88,7 +79,6 @@ AVAILABLE_ACTIVATIONS: tuple[str, ...] = tuple(ACTIVATION_REGISTRY.keys())
 
 
 def get_activation(name: str) -> Activation:
-    """Fabryka zwracająca instancję funkcji aktywacji na podstawie jej nazwy."""
     if not isinstance(name, str):
         raise ValueError(
             f"Nazwa funkcji aktywacji musi być tekstem (str), otrzymano: {type(name).__name__}"
