@@ -398,7 +398,7 @@ def parse_args() -> argparse.Namespace:
         "--size",
         type=int,
         choices=[100, 500, 1000, 10000],
-        default=500,
+        default=10000,
         help="Rozmiar zbioru danych (domyślnie: 500).",
     )
     parser.add_argument(
