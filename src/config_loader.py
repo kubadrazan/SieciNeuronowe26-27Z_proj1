@@ -144,10 +144,7 @@ def print_config(config: dict) -> None:
         f"momentum={train.get('momentum', 0.0)}, epoki={train['epochs']}, batch_size={train['batch_size']}"
     )
     if data.get("format", "csv") == "mnist_idx":
-        print(
-            f"  Dane: task={data['task']}, format=mnist_idx, "
-            f"train={data['train_images']}, test={data['test_images']}"
-        )
+        print("  Dane: MNIST IDX")
     else:
         print(
             f"  Dane: task={data['task']}, train={data['train_file']}, "

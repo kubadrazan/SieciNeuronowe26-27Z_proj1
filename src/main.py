@@ -114,9 +114,7 @@ def run_from_config(
     elif task == "regression":
         X_train, y_train = load_regression_csv(str(root / data_cfg["train_file"]))
     else:
-        X_train, y_train = load_classification_csv(
-            str(root / data_cfg["train_file"])
-        )
+        X_train, y_train = load_classification_csv(str(root / data_cfg["train_file"]))
 
     model = build_model(config)
     if model.layers[0] != X_train.shape[1]:
@@ -139,7 +137,9 @@ def run_from_config(
 
     if task == "regression":
         if y_train.shape[1] != 1:
-            raise ValueError("Regresja R -> R wymaga dokładnie jednej wartości docelowej.")
+            raise ValueError(
+                "Regresja R -> R wymaga dokładnie jednej wartości docelowej."
+            )
         training_x_min = float(np.min(X_train[:, 0]))
         training_x_max = float(np.max(X_train[:, 0]))
 
@@ -194,9 +194,7 @@ def run_from_config(
     elif task == "regression":
         X_test_raw, y_test = load_regression_csv(str(root / data_cfg["test_file"]))
     else:
-        X_test_raw, y_test = load_classification_csv(
-            str(root / data_cfg["test_file"])
-        )
+        X_test_raw, y_test = load_classification_csv(str(root / data_cfg["test_file"]))
 
     if X_train.shape[1] != X_test_raw.shape[1]:
         raise ValueError(
@@ -208,7 +206,9 @@ def run_from_config(
         y_test_for_loss = y_test
     else:
         if y_test.shape[1] != 1:
-            raise ValueError("Regresja R -> R wymaga dokładnie jednej wartości docelowej.")
+            raise ValueError(
+                "Regresja R -> R wymaga dokładnie jednej wartości docelowej."
+            )
         y_test_raw = y_test.copy()
         y_test_for_loss = scaler_y.transform(y_test)
 
@@ -317,10 +317,7 @@ def run_from_config(
                 plot_dir / "classification_boundary.png",
             )
         elif verbose:
-            print(
-                "Pomijam wykres granicy decyzyjnej: jest dostępny tylko "
-                "dla danych z dokładnie 2 cechami."
-            )
+            print("  Pominięto wykres granicy (wymaga 2 cech).")
         if verbose:
             print(f"Wykresy zapisano w: {plot_dir}")
 
