@@ -1,0 +1,381 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage[polish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{svg}
+\usepackage{float}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{xcolor}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{minted}
+\usemintedstyle{vs}
+\usepackage{biblatex}
+\addbibresource{references.bib}
+
+
+\geometry{margin=2.5cm}
+
+\newcommand{\screenshotplaceholder}[2]{
+    \begin{figure}[H]
+        \centering
+        \fbox{
+            \begin{minipage}[c][5.5cm]{0.85\textwidth}
+                 \centering
+                \vspace{2.0cm}
+                \textbf{\large #1} \\
+                \vspace{0.3cm}
+                \textit{(#2)}
+            \end{minipage}
+        }
+        \caption{#1 -- #2}
+    \end{figure}
+}
+
+\newcommand{\screenshot}[2]{
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.98\textwidth]{#1}
+        \caption{#2}
+    \end{figure}
+}
+
+
+\title{%
+
+    \begin{figure}[h]
+        \centering
+        \hspace*{-1.5cm}
+        \includesvg[scale = 1.5]{MiNI_logo}
+    \end{figure}
+    
+    \vspace{\baselineskip}
+    \vspace{\baselineskip}
+    \Huge \textbf{Sieci Neuronowe} \\
+    \Huge Projekt 1 - część 1
+     \vfill
+    }
+\author{Autorzy: Jan Czemko, Kuba Drażan
+    \vspace{\baselineskip} }
+
+\date{Październik 2026}
+
+
+\begin{document}
+
+\maketitle
+
+\newpage
+
+\section{Abstrakt i opis metodyki badań}
+
+Celem pierwszej części projektu było zaimplementowanie od podstaw wielowarstwowego perceptronu (MLP) bez wykorzystania bibliotek już implementujących gotowe rozwiązania oraz zbadanie wpływu kluczowych hiperparametrów strukturalnych na skuteczność uczenia w zadaniach klasyfikacji w przestrzeni $\mathbb{R}^2$ oraz regresji $\mathbb{R} \to \mathbb{R}$.
+
+\subsection{Architektura rozwiązania i szczegóły implementacyjne}
+Zaimplementowany silnik sieci neuronowej wspiera dowolną liczbę warstw ukrytych (w tym brak warstw ukrytych - model liniowy), opcjonalny \textit{bias} oraz wektoryzację obliczeń w mini-batchach. W celu zapewnienia stabilności numerycznej oraz powtarzalności eksperymentów zastosowano:
+\begin{itemize}
+    \item \textbf{Inicjalizację wag dopasowaną do funkcji aktywacji:} dla warstw z funkcją \texttt{ReLU} zastosowano inicjalizację He ($\mathcal{N}(0, \sqrt{2/n_{\text{in}}})$), natomiast dla pozostałych funkcji aktywacji (\texttt{sigmoid}, \texttt{tanh}, \texttt{linear}, \texttt{softmax}) inicjalizację Xaviera/Glorota ($\mathcal{U}(-\sqrt{6/(n_{\text{in}}+n_{\text{out}})}, \sqrt{6/(n_{\text{in}}+n_{\text{out}})})$).
+    \item \textbf{Standaryzację danych:} cechy wejściowe $X$ (oraz wartości docelowe $y$ podczas uczenia modeli regresyjnych) są standaryzowane ($\mu = 0, \sigma = 1$) na podstawie statystyk wyznaczonych wyłącznie na zbiorze treningowym. Ewaluacja błędów końcowych dla regresji (\texttt{RMSE}, \texttt{MAE}) odbywa się po odwrotnym przeskalowaniu predykcji do oryginalnej dziedziny.
+    \item \textbf{Optymalizację SGD z pędem (momentum):} we wszystkich eksperymentach porównawczych zastosowano algorytm spadku wzdłuż gradientu w mini-batchach (\texttt{batch\_size} $= 32$) ze współczynnikiem uczenia $\eta = 0.03$, współczynnikiem pędu $\gamma = 0.9$, przez $200$ epok, przy ustalonym ziarnie generatora liczb pseudolosowych ($\text{seed} = 42$). Zbiór treningowy w pełnym wariancie $N = 10\,000$ (oraz porównawczo w mniejszym wariancie $N = 500$) dzielono w proporcji $80\% / 20\%$ na część uczącą i walidacyjną.
+\end{itemize}
+
+\subsection{Zbiory danych}
+Badania przeprowadzono na czterech zbiorach danych w pełnym wariancie $N = 10\,000$ (oraz dodatkowo porównano zachowanie głębokich sieci z wariantem $N = 500$):
+\begin{enumerate}
+    \item \textbf{\texttt{simple}} (klasyfikacja binarna w $\mathbb{R}^2$, 2 klasy) -- zbiór o prostej, niemal liniowo separowalnej granicy decyzyjnej.
+    \item \textbf{\texttt{three\_gauss}} (klasyfikacja wieloklasowa w $\mathbb{R}^2$, 3 klasy) -- trzy częściowo nakładające się chmury punktów z rozkładu normalnego, wymagające nieliniowych granic decyzyjnych.
+    \item \textbf{\texttt{activation}} (regresja $\mathbb{R} \to \mathbb{R}$) -- punkty wygenerowane z gładkiej, ograniczonej funkcji o charakterze sigmoidalnym z poziomymi asymptotami.
+    \item \textbf{\texttt{cube}} (regresja $\mathbb{R} \to \mathbb{R}$) -- punkty wygenerowane z wielomianu trzeciego stopnia ($y \approx ax^3 + bx^2 + cx + d$), charakteryzującego się gwałtownym wzrostem wartości na krańcach dziedziny.
+\end{enumerate}
+Ważną cechą zbiorów testowych w zadaniach regresji jest obecność punktów leżących poza przedziałem wartości $x$ reprezentowanym w zbiorze treningowym. Z tego względu w analizie regresji raportujemy osobno błąd interpolacji wewnątrz zakresu treningowego (\texttt{RMSE inside}) oraz błąd ekstrapolacji poza tym zakresem (\texttt{RMSE outside}).
+
+\newpage
+
+\section{Wpływ funkcji aktywacji na skuteczność działania sieci}
+
+W pierwszym badaniu porównano trzy wewnętrzne funkcje aktywacji w warstwach ukrytych:
+\begin{align}
+    \text{Sigmoid:} \quad \sigma(z) &= \frac{1}{1 + e^{-z}}, & \sigma'(z) &= \sigma(z)(1 - \sigma(z)) \in (0, 0.25], \\
+    \text{Tanh:} \quad \tanh(z) &= \frac{e^z - e^{-z}}{e^z + e^{-z}}, & \tanh'(z) &= 1 - \tanh^2(z) \in (0, 1], \\
+    \text{ReLU:} \quad f(z) &= \max(0, z), & f'(z) &= \mathbb{I}(z > 0) \in \{0, 1\}.
+\end{align}
+Na warstwie wyjściowej zastosowano funkcję odpowiednią do typu zadania: \texttt{softmax} dla klasyfikacji (ze stratą \texttt{CCE}) oraz funkcję liniową \texttt{linear} ($f(z)=z$) dla regresji (ze stratą \texttt{MSE}).
+
+\subsection{Wyniki dla zadań klasyfikacji ($N = 10\,000$)}
+
+Tabela \ref{tab:act_class} przedstawia dokładność na zbiorze testowym (\texttt{test\_acc}), najniższą stratę walidacyjną (\texttt{val\_loss\_best}) oraz czas treningu 200 epok dla trzech architektur o rosnącej głębokości (1, 2 oraz 3 warstwy ukryte) na pełnym zbiorze $N = 10\,000$.
+
+\begin{table}[H]
+\centering
+\caption{Porównanie funkcji aktywacji w warstwach ukrytych dla zadań klasyfikacji ($N = 10\,000$, wyjście \texttt{softmax}, błąd \texttt{CCE}).}
+\label{tab:act_class}
+\vspace{0.2cm}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llccc}
+\toprule
+\textbf{Zbiór danych} & \textbf{Architektura} & \textbf{\texttt{sigmoid}} (Acc / Val Loss / Czas) & \textbf{\texttt{tanh}} (Acc / Val Loss / Czas) & \textbf{\texttt{relu}} (Acc / Val Loss / Czas) \\
+\midrule
+\texttt{simple} & \texttt{2-16-2} & \textbf{99.64\%} / 0.0095 / 10.36\,s & 99.43\% / 0.0084 / 7.58\,s & 99.42\% / \textbf{0.0074} / \textbf{5.95\,s} \\
+\texttt{simple} & \texttt{2-16-8-2} & \textbf{99.33\%} / 0.0082 / 8.78\,s & 99.29\% / 0.0078 / 6.87\,s & 99.31\% / \textbf{0.0075} / \textbf{5.50\,s} \\
+\texttt{simple} & \texttt{2-32-16-8-2} & \textbf{99.67\%} / 0.0083 / 13.35\,s & 99.65\% / 0.0074 / 11.61\,s & 99.44\% / \textbf{0.0069} / \textbf{7.88\,s} \\
+\midrule
+\texttt{three\_gauss} & \texttt{2-16-3} & \textbf{93.77\%} / 0.1382 / 17.77\,s & 93.71\% / \textbf{0.1379} / 14.66\,s & 93.69\% / 0.1382 / \textbf{12.74\,s} \\
+\texttt{three\_gauss} & \texttt{2-16-8-3} & \textbf{93.70\%} / 0.1383 / 25.86\,s & 93.55\% / 0.1381 / 20.85\,s & 93.68\% / \textbf{0.1379} / \textbf{16.56\,s} \\
+\texttt{three\_gauss} & \texttt{2-32-16-8-3} & \textbf{93.74\%} / \textbf{0.1386} / 37.77\,s & 93.69\% / 0.1404 / 30.18\,s & 93.71\% / 0.1396 / \textbf{22.93\,s} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Przy pełnym zbiorze $N = 10\,000$ wszystkie trzy funkcje aktywacji osiągają bardzo wysoką skuteczność ($99.3\% - 99.7\%$ na \texttt{simple} oraz $93.6\% - 93.8\%$ na \texttt{three\_gauss}), przy czym \texttt{relu} i \texttt{tanh} systematycznie osiągają niższą stratę walidacyjną na zbiorze \texttt{simple}. Duży rozmiar zbioru ujawnia ponadto istotną różnicę w \textbf{wydajności obliczeniowej}: funkcja \texttt{relu} (bez kosztownego obliczania funkcji wykładniczej $\exp$) wykonuje 200 epok na zbiorze \texttt{three\_gauss} (\texttt{2-32-16-8-3}) w \textbf{22.93\,s}, podczas gdy \texttt{tanh} potrzebuje \textbf{30.18\,s}, a \texttt{sigmoid} aż \textbf{37.77\,s} (o $65\%$ dłużej).
+
+\screenshot{report/fig1_act_boundaries.png}{Granice decyzyjne na zbiorze \texttt{three\_gauss} (architektura \texttt{2-16-8-3}) dla wewnętrznych funkcji aktywacji: \texttt{sigmoid}, \texttt{tanh} oraz \texttt{ReLU}.}
+
+\subsection{Wyniki dla zadań regresji: interpolacja a ekstrapolacja ($N = 10\,000$)}
+
+W zadaniach regresji wybór funkcji aktywacji w warstwach ukrytych ma decydujący wpływ na kształt aproksymowanej krzywej (Tabela \ref{tab:act_reg}).
+
+\begin{table}[H]
+\centering
+\caption{Porównanie funkcji aktywacji w warstwach ukrytych dla zadań regresji ($N = 10\,000$, wyjście \texttt{linear}, błąd \texttt{MSE}).}
+\label{tab:act_reg}
+\vspace{0.2cm}
+\begin{tabular}{lllccc}
+\toprule
+\textbf{Zbiór} & \textbf{Architektura} & \textbf{Aktywacja} & \textbf{Test RMSE (całość)} & \textbf{RMSE inside} & \textbf{RMSE outside} \\
+\midrule
+\texttt{activation} & \texttt{1-16-1} & \texttt{sigmoid} & 1.3091 & 0.0596 & 2.0236 \\
+\texttt{activation} & \texttt{1-16-1} & \textbf{\texttt{tanh}} & \textbf{0.6432} & \textbf{0.0467} & \textbf{0.9934} \\
+\texttt{activation} & \texttt{1-16-1} & \texttt{relu} & 27.8682 & 0.6384 & 43.0984 \\
+\midrule
+\texttt{activation} & \texttt{1-16-8-1} & \texttt{sigmoid} & 5.3513 & 0.3296 & 8.2680 \\
+\texttt{activation} & \texttt{1-16-8-1} & \textbf{\texttt{tanh}} & \textbf{1.4320} & \textbf{0.0344} & \textbf{2.2145} \\
+\texttt{activation} & \texttt{1-16-8-1} & \texttt{relu} & 28.1410 & 0.3158 & 43.5254 \\
+\midrule
+\texttt{activation} & \texttt{1-32-16-8-1} & \texttt{sigmoid} & 6.0804 & 0.3670 & 9.3949 \\
+\texttt{activation} & \texttt{1-32-16-8-1} & \textbf{\texttt{tanh}} & \textbf{0.8271} & \textbf{0.0384} & \textbf{1.2785} \\
+\texttt{activation} & \texttt{1-32-16-8-1} & \texttt{relu} & 22.4302 & 0.3028 & 34.6920 \\
+\midrule
+\texttt{cube} & \texttt{1-16-1} & \texttt{sigmoid} & 191.5233 & 0.3879 & 296.2380 \\
+\texttt{cube} & \texttt{1-16-1} & \texttt{tanh} & 177.3491 & \textbf{0.2855} & 274.3143 \\
+\texttt{cube} & \texttt{1-16-1} & \textbf{\texttt{relu}} & \textbf{137.3659} & 0.4633 & \textbf{212.4697} \\
+\midrule
+\texttt{cube} & \texttt{1-16-8-1} & \texttt{sigmoid} & 186.1223 & 0.3606 & 287.8840 \\
+\texttt{cube} & \texttt{1-16-8-1} & \textbf{\texttt{tanh}} & 212.2973 & \textbf{0.1658} & 328.3704 \\
+\texttt{cube} & \texttt{1-16-8-1} & \textbf{\texttt{relu}} & \textbf{154.0403} & 0.7193 & \textbf{238.2601} \\
+\midrule
+\texttt{cube} & \texttt{1-32-16-8-1} & \texttt{sigmoid} & \textbf{193.3185} & 0.2892 & \textbf{299.0149} \\
+\texttt{cube} & \texttt{1-32-16-8-1} & \textbf{\texttt{tanh}} & 210.3585 & \textbf{0.0970} & 325.3716 \\
+\texttt{cube} & \texttt{1-32-16-8-1} & \texttt{relu} & 366.4582 & 53.5991 & 563.2789 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Analiza wyników z Tabeli \ref{tab:act_reg} prowadzi do następujących wniosków:
+\begin{enumerate}
+    \item \textbf{Zdecydowana przewaga \texttt{tanh} w interpolacji funkcji gładkich:} We wszystkich konfiguracjach tangens hiperboliczny daje najniższy błąd wewnątrz przedziału danych uczących (\texttt{RMSE inside}). Na zbiorze \texttt{activation} dla sieci \texttt{1-16-8-1} funkcja \texttt{tanh} osiąga $\text{RMSE}_{\text{in}} = \mathbf{0.0344}$, czyli wynik niemal \textbf{10-krotnie dokładniejszy} niż \texttt{sigmoid} ($0.3296$) oraz \texttt{relu} ($0.3158$). Na zbiorze \texttt{cube} dla sieci 3-warstwowej \texttt{1-32-16-8-1} błąd interpolacji dla \texttt{tanh} spada do $\mathbf{0.0970}$ (wobec $0.2892$ dla \texttt{sigmoid}). Wynika to z symetrii funkcji \texttt{tanh} względem zera ($\tanh(z) \in (-1, 1)$) oraz czterokrotnie większej pochodnej w zerze ($\tanh'(0)=1$ wobec $\sigma'(0)=0.25$).
+    \item \textbf{Własności aproksymacyjne \texttt{tanh} vs \texttt{relu} (gładkość vs ekstrapolacja):}
+    \begin{itemize}
+        \item Na zbiorze \texttt{activation}, gdzie prawdziwa funkcja jest gładka i posiada poziome asymptoty, funkcja \texttt{tanh} świetnie radzi sobie zarówno wewnątrz zakresu treningowego ($\text{RMSE}_{\text{in}} = 0.0344 - 0.0467$), jak i poza nim ($\text{RMSE}_{\text{out}} = 0.9934 - 2.2145$). Z kolei \texttt{relu} buduje aproksymację kawałkami liniową (funkcję łamaną), która poza przedziałem danych uczących ucieka liniowo w nieskończoność, generując ogromny błąd ekstrapolacji ($\text{RMSE}_{\text{out}} = 34.69 - 43.53$).
+        \item Odwrotne zjawisko obserwujemy poza zakresem treningowym na zbiorze \texttt{cube} ($y \approx x^3$). Wewnątrz przedziału treningowego najdokładniejszy jest gładki \texttt{tanh} ($\text{RMSE}_{\text{in}} = 0.0970 - 0.2855$). Jednak poza zakresem treningowym ograniczone funkcje \texttt{sigmoid} i \texttt{tanh} ulegają nasyceniu (saturacji) i wypłaszczają predykcję do stałej asymptoty, podczas gdy nieograniczone \texttt{relu} kontynuuje wzrost liniowy na krańcach dziedziny, uzyskując najniższy błąd ekstrapolacji ($\text{RMSE}_{\text{out}} = 212.47$ dla \texttt{1-16-1} oraz $238.26$ dla \texttt{1-16-8-1}).
+    \end{itemize}
+    \item \textbf{Stabilność głębokich sieci z \texttt{relu} a rozmiar zbioru danych ($N=500$ vs $N=10\,000$):} Przy mniejszym zbiorze $N=500$ 3-warstwowa sieć \texttt{1-32-16-8-1} z aktywacją \texttt{relu} ulegała destabilizacji zarówno na zbiorze \texttt{activation} ($\text{RMSE}_{\text{in}} = 88.38$), jak i \texttt{cube} ($\text{RMSE}_{\text{in}} = 52.96$). Zwiększenie rozmiaru zbioru do $N=10\,000$ całkowicie ustabilizowało uczenie tej sieci na zbiorze \texttt{activation} ($\text{RMSE}_{\text{in}} = 0.3028$, \texttt{best\_epoch} $= 195$), natomiast na zbiorze \texttt{cube} (gdzie pochodne wielomianu 3. stopnia są znacznie większe) w szerokiej architekturze \texttt{1-32-16-8-1} przy $\eta = 0.03, \gamma = 0.9$ nadal wystąpił skok gradientu ($\text{RMSE}_{\text{in}} = 53.60$), podczas gdy węższa sieć 4-warstwowa \texttt{1-16-16-8-4-1} z \texttt{relu} zbiegła stabilnie do $\text{RMSE}_{\text{in}} = 0.2080$.
+\end{enumerate}
+
+\screenshot{report/fig2_act_regression.png}{Dopasowanie krzywej regresji na zbiorach \texttt{activation} (góra) oraz \texttt{cube} (dół) dla architektury \texttt{1-16-8-1} -- porównanie gładkiej aproksymacji \texttt{tanh} (z saturacją poza zakresem uczącym na \texttt{cube}) oraz łamanej \texttt{ReLU} (z liniową ekstrapolacją poza zakresem treningowym).}
+
+\screenshot{report/fig3_act_loss.png}{Przebieg błędu \texttt{MSE} (w skali logarytmowej) w kolejnych epokach dla funkcji aktywacji \texttt{sigmoid}, \texttt{tanh} oraz \texttt{ReLU} na zbiorach \texttt{activation} i \texttt{cube}.}
+
+\newpage
+
+\section{Wpływ liczby warstw ukrytych w sieci oraz ich liczności}
+
+W drugim badaniu przeanalizowano wpływ głębokości sieci, od \textbf{0 do 4 warstw ukrytych}, oraz szerokości (liczności neuronów) poszczególnych warstw. Zbadano 11 architektur:
+\begin{itemize}
+    \item \textbf{0 warstw ukrytych:} \texttt{brak} (bezpośrednie połączenie wejścia z wyjściem, model liniowy),
+    \item \textbf{1 warstwa ukryta:} \texttt{[4]} (wąska), \texttt{[16]} (średnia), \texttt{[64]} (szeroka),
+    \item \textbf{2 warstwy ukryte:} \texttt{[8, 4]}, \texttt{[16, 8]}, \texttt{[32, 16]},
+    \item \textbf{3 warstwy ukryte:} \texttt{[16, 8, 4]}, \texttt{[32, 16, 8]},
+    \item \textbf{4 warstwy ukryte:} \texttt{[16, 16, 8, 4]}, \texttt{[32, 16, 16, 8]}.
+\end{itemize}
+
+\subsection{Zestawienie wyników dla 0--4 warstw ukrytych ($N = 10\,000$ vs $N = 500$)}
+
+Tabela \ref{tab:arch} zestawia wyniki uzyskane dla wszystkich badanych architektur na pełnym zbiorze $N = 10\,000$ (oraz porównawczo błąd interpolacji na zbiorze \texttt{cube} dla $N = 500$, obrazujący różnicę w zachowaniu głębokich sieci 4-warstwowych).
+
+\begin{table}[H]
+\centering
+\caption{Wpływ liczby warstw ukrytych (0--4) oraz liczby neuronów na skuteczność klasyfikacji i regresji ($N = 10\,000$ oraz porównanie z $N = 500$).}
+\label{tab:arch}
+\vspace{0.2cm}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{clccccccc}
+\toprule
+\textbf{L. warstw} & \textbf{Warstwy ukryte} & \textbf{Liczba wag*} & \textbf{\texttt{simple}} & \textbf{\texttt{three\_gauss}} & \textbf{\texttt{activation} (\texttt{tanh})} & \textbf{\texttt{cube} (\texttt{tanh})} & \textbf{\texttt{cube} (\texttt{tanh})} & \textbf{\texttt{cube} (\texttt{relu})} \\
+\textbf{ukrytych} & (\texttt{hidden\_layers}) & (\texttt{three\_gauss}) & (Acc / Test Loss) & (Acc / Test Loss) & (\texttt{RMSE in}, $10\text{k}$) & (\texttt{RMSE in}, $N=500$) & (\texttt{RMSE in}, $N=10\text{k}$) & (\texttt{RMSE in} / \texttt{RMSE}, $10\text{k}$) \\
+\midrule
+\textbf{0} & \texttt{brak} & 9 & 99.61\% / 0.0189 & 92.57\% / 0.2116 & 26.7353 & 31.3676 & 31.8359 & 31.8359 / 306.14 \\
+\midrule
+\textbf{1} & \texttt{[4]} & 27 & 99.47\% / 0.0126 & 93.58\% / 0.1630 & \textbf{0.0133} & 1.5686 & 0.3354 & 3.1797 / 166.72 \\
+\textbf{1} & \texttt{[16]} & 99 & 99.43\% / 0.0130 & 93.71\% / 0.1597 & 0.0467 & 2.1951 & 0.2855 & 0.4633 / 137.37 \\
+\textbf{1} & \texttt{[64]} & 387 & 99.43\% / 0.0136 & \textbf{93.72\%} / 0.1600 & 0.1025 & 1.3836 & 0.6243 & 0.3318 / \textbf{131.41} \\
+\midrule
+\textbf{2} & \texttt{[8, 4]} & 75 & 99.44\% / 0.0135 & 93.65\% / 0.1591 & 0.0479 & 0.6008 & 0.1929 & 3.4122 / 147.36 \\
+\textbf{2} & \texttt{[16, 8]} & 211 & 99.31\% / 0.0152 & 93.68\% / 0.1586 & 0.0344 & 0.4006 & 0.1658 & 0.7193 / 154.04 \\
+\textbf{2} & \texttt{[32, 16]} & 675 & 99.35\% / 0.0146 & 93.64\% / \textbf{0.1582} & 0.0209 & 0.3291 & 0.1399 & 0.5576 / 135.50 \\
+\midrule
+\textbf{3} & \texttt{[16, 8, 4]} & 235 & \textbf{99.66\%} / \textbf{0.0087} & 93.70\% / 0.1590 & 0.0878 & 0.4236 & 0.1015 & 0.5582 / 265.29 \\
+\textbf{3} & \texttt{[32, 16, 8]} & 787 & 99.65\% / 0.0094 & 93.71\% / 0.1603 & 0.0384 & \textbf{0.2657} & 0.0970 & 53.5991 / 366.46 \\
+\midrule
+\textbf{4} & \texttt{[16, 16, 8, 4]} & 507 & 99.45\% / 0.0110 & 93.60\% / 0.1599 & 0.0216 & 0.8338 & \textbf{0.0894} & \textbf{0.2080} / 147.35 \\
+\textbf{4} & \texttt{[32, 16, 16, 8]} & 1059 & 99.50\% / 0.0106 & 93.56\% / 0.1605 & 0.0869 & 0.8804 & 0.0930 & 0.3629 / 153.37 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\subsection{Analiza wpływu głębokości i szerokości sieci}
+\begin{enumerate}
+    \item \textbf{0 warstw ukrytych (ograniczenie liniowe):}
+    Sieć pozbawiona warstw ukrytych tworzy wyłącznie liniową kombinację cech wejściowych. Na zbiorze \texttt{simple}, gdzie dwie klasy są niemal liniowo separowalne, model \texttt{2-2} osiąga aż $99.61\%$ dokładności. Jednak na zbiorze \texttt{three\_gauss} (wymagającym zakrzywionych granic decyzyjnych) dokładność spada do $92.57\%$ przy wysokiej stracie testowej ($0.2116$). W zadaniach regresji nieliniowej model \texttt{1-1} (prosta $y = wx + b$) ponosi całkowitą porażkę niezależnie od rozmiaru zbioru, dając błąd $\text{RMSE}_{\text{in}} = 26.74$ na zbiorze \texttt{activation} oraz $31.84$ na zbiorze \texttt{cube}.
+    \item \textbf{Przejście z 0 do 1 warstwy ukrytej oraz wpływ liczności neuronów (\texttt{[4]} vs \texttt{[16]} vs \texttt{[64]}):}
+    Zgodnie z twierdzeniem o uniwersalnej aproksymacji, wprowadzenie już jednej warstwy ukrytej z zaledwie 4 neuronami (\texttt{[4]}) redukuje błąd interpolacji na zbiorze \texttt{activation} o ponad trzy rzędy wielkości (z $26.7353$ do $\mathbf{0.0133}$).Natomiast dla funkcji \texttt{relu} oraz dla wielomianu \texttt{cube} zwiększanie szerokości warstwy (\texttt{4} $\to$ \texttt{16} $\to$ \texttt{64}) systematycznie obniża błąd: na zbiorze \texttt{cube} z aktywacją \texttt{relu} błąd wewnątrz zakresu spada z $3.1797$ (\texttt{[4]}), przez $0.4633$ (\texttt{[16]}), aż do $0.3318$ (\texttt{[64]}).
+    \item \textbf{Monotoniczna poprawa od 0 do 4 warstw ukrytych dla pełnego zbioru $N = 10\,000$ a zjawisko przeuczenia dla $N = 500$:}
+    Porównanie kolumn $N = 500$ oraz $N = 10\,000$ dla zbioru \texttt{cube} w Tabeli \ref{tab:arch} doskonale ilustruje relację między pojemnością sieci a rozmiarem zbioru uczącego:
+    \begin{itemize}
+        \item Przy małym zbiorze \textbf{$N = 500$} ($400$ przykładów uczących) najlepszy wynik osiągała sieć 3-warstwowa ($\text{RMSE}_{\text{in}} = 0.2657$), natomiast zwiększenie głębokości do \textbf{4 warstw ukrytych} ($507 - 1059$ parametrów) powodowało wyraźne pogorszenie wyniku ($\text{RMSE}_{\text{in}} = 0.8338 - 0.8804$) wskutek przeuczenia i zbyt małej liczby aktualizacji wag w epoce.
+        \item Przy pełnym zbiorze \textbf{$N = 10\,000$} ($8000$ przykładów uczących) głębokie sieci w pełni wykorzystują swoją reprezentację hierarchiczną -- błąd interpolacji na zbiorze \texttt{cube} z aktywacją \texttt{tanh} \textbf{maleje monotonicznie wraz ze wzrostem liczby warstw od 0 do 4}: $31.8359$ (0 warstw) $\to 0.2855$ (1 warstwa) $\to 0.1399$ (2 warstwy) $\to 0.0970$ (3 warstwy) $\to \mathbf{0.0894}$ (4 warstwy \texttt{[16, 16, 8, 4]}). Również dla aktywacji \texttt{relu} na zbiorze \texttt{cube} najniższy błąd interpolacji uzyskano dla 4 warstw ukrytych \texttt{[16, 16, 8, 4]} ($\mathbf{0.2080}$).
+        \item Podobnie na zbiorze klasyfikacyjnym \texttt{simple} ($N = 10\,000$) najwyższą skuteczność testową ($\mathbf{99.66\%}$ przy najniższej stracie testowej $\mathbf{0.0087}$) osiągają sieci 3-warstwowe (\texttt{[16, 8, 4]} oraz \texttt{[32, 16, 8]}).
+    \end{itemize}
+\end{enumerate}
+
+\screenshot{report/fig4_arch_boundaries.png}{Porównanie granic decyzyjnych na zbiorze \texttt{three\_gauss} dla 0, 1, 2 i 4 warstw ukrytych -- widoczne przejście od liniowego podziału płaszczyzny (0 warstw) do gładkich, nieliniowych obszarów decyzyjnych.}
+
+\screenshot{report/fig5_arch_regression.png}{Krzywa regresji na zbiorze \texttt{cube} dla 0 warstw ukrytych (\texttt{1-1}, model liniowy), 1 warstwy \texttt{[4]} oraz 4 warstw \texttt{[16, 16, 8, 4]} z aktywacją \texttt{tanh}.}
+
+\screenshot{report/fig6_weight_evolution.png}{Ewolucja wartości wag oraz biasów w kolejnych epokach uczenia w poszczególnych warstwach sieci \texttt{2-16-8-3} na zbiorze \texttt{three\_gauss}.}
+
+\newpage
+
+\section{Wpływ miary błędu na wyjściu sieci na skuteczność uczenia}
+
+W trzecim badaniu, przy ustalonej architekturze dwóch warstw ukrytych \texttt{[16, 8]}, zbadano wpływ wyboru funkcji straty:
+\begin{itemize}
+    \item \textbf{Dla klasyfikacji:} porównano entropię krzyżową -- binarną \texttt{BCE} (dla 1 neuronu wyjściowego z aktywacją \texttt{sigmoid}) oraz kategoryczną \texttt{CCE} (dla $K$ neuronów z aktywacją \texttt{softmax}) -- z błędem średniokwadratowym \texttt{MSE}:
+    \begin{equation}
+        \mathcal{L}_{\text{CCE}}(\hat{y}, y) = -\frac{1}{N} \sum_{i=1}^N \sum_{c=1}^K y_{i,c} \ln(\hat{y}_{i,c}), \qquad
+        \mathcal{L}_{\text{MSE}}(\hat{y}, y) = \frac{1}{NK} \sum_{i=1}^N \sum_{c=1}^K (\hat{y}_{i,c} - y_{i,c})^2.
+    \end{equation}
+    \item \textbf{Dla regresji:} porównano błąd średniokwadratowy (\texttt{MSE}) z błędem średnim bezwzględnym (\texttt{MAE}):
+    \begin{equation}
+        \mathcal{L}_{\text{MSE}}(\hat{y}, y) = \frac{1}{N} \sum_{i=1}^N (\hat{y}_i - y_i)^2, \qquad
+        \mathcal{L}_{\text{MAE}}(\hat{y}, y) = \frac{1}{N} \sum_{i=1}^N |\hat{y}_i - y_i|.
+    \end{equation}
+\end{itemize}
+
+\subsection{Porównanie miar błędu w klasyfikacji (\texttt{CCE}/\texttt{BCE} vs \texttt{MSE})}
+
+Wyniki dla klasyfikacji przedstawiono w Tabeli \ref{tab:loss_class}.
+
+\begin{table}[H]
+\centering
+\caption{Wpływ funkcji straty na skuteczność i szybkość zbieżności klasyfikacji dla architektury \texttt{[16, 8]} ($N = 10\,000$ oraz odniesienie do $N = 500$).}
+\label{tab:loss_class}
+\vspace{0.2cm}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllcc}
+\toprule
+\textbf{Zbiór danych} & \textbf{Warstwa wyjściowa} & \textbf{Aktywacja ukryta} & \textbf{\texttt{CCE} / \texttt{BCE}} (Test Acc / Best Epoch) & \textbf{\texttt{MSE}} (Test Acc / Best Epoch) \\
+\midrule
+\texttt{simple} ($N=10\,000$) & \texttt{softmax} (2 neurony) & \texttt{sigmoid} & 99.33\% / \textbf{ep. 160} (\texttt{cce}) & \textbf{99.48\%} / ep. 196 \\
+\texttt{simple} ($N=10\,000$) & \texttt{sigmoid} (1 neuron) & \texttt{sigmoid} & 99.34\% / \textbf{ep. 160} (\texttt{bce}) & \textbf{99.54\%} / ep. 194 \\
+\texttt{simple} ($N=10\,000$) & \texttt{softmax} (2 neurony) & \texttt{relu} & 99.31\% / \textbf{ep. 137} (\texttt{cce}) & \textbf{99.43\%} / ep. 160 \\
+\midrule
+\texttt{three\_gauss} ($N=10\,000$) & \texttt{softmax} (3 neurony) & \texttt{sigmoid} & 93.70\% / \textbf{ep. 92} (\texttt{cce}) & \textbf{93.79\%} / ep. 183 \\
+\texttt{three\_gauss} ($N=10\,000$) & \texttt{softmax} (3 neurony) & \texttt{tanh} & 93.55\% / ep. 193 (\texttt{cce}) & \textbf{93.80\%} / \textbf{ep. 34} \\
+\texttt{three\_gauss} ($N=10\,000$) & \texttt{softmax} (3 neurony) & \texttt{relu} & 93.68\% / \textbf{ep. 25} (\texttt{cce}) & \textbf{93.74\%} / ep. 44 \\
+\midrule
+\texttt{three\_gauss} ($N=500$) & \texttt{softmax} (3 neurony) & \texttt{sigmoid} & \textbf{94.00\%} / ep. 184 (\texttt{cce}) & 93.27\% / ep. 181 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Analiza Tabeli \ref{tab:loss_class} pokazuje ciekawy wpływ rozmiaru zbioru na porównanie \texttt{CCE}/\texttt{BCE} względem \texttt{MSE}:
+\begin{itemize}
+    \item Przy mniejszym zbiorze ($N = 500$, tylko 13 kroków SGD na epokę) w sieci z wewnętrzną aktywacją \texttt{sigmoid} na zbiorze \texttt{three\_gauss} entropia krzyżowa \texttt{CCE} osiąga wyraźnie wyższą dokładność (\textbf{94.00\%}) niż \texttt{MSE} (\textbf{93.27\%}).
+    \item Przy dużym zbiorze ($N = 10\,000$, aż 250 kroków SGD na epokę) łączna liczba $50\,000$ aktualizacji wag pozwala również funkcji \texttt{MSE} pokonać początkowe spłaszczenie pochodnej sigmoidalnej i osiągnąć bardzo zbliżoną dokładność końcową ($93.79\%$ vs $93.70\%$ na \texttt{three\_gauss} oraz $99.48\% - 99.54\%$ na \texttt{simple}). Mimo to entropia krzyżowa \texttt{CCE} z aktywacją \texttt{sigmoid} osiąga minimum błędu walidacyjnego \textbf{dwukrotnie szybciej} (\texttt{Best Epoch} $= 92$ wobec $183$ dla \texttt{MSE}).
+\end{itemize}
+
+\textbf{Uzasadnienie teoretyczne:} Gdy na wyjściu znajduje się funkcja \texttt{sigmoid} lub \texttt{softmax}, użycie błędu \texttt{MSE} prowadzi do gradientu zawierającego iloczyn błędu predykcji i pochodnej funkcji aktywacji: $\frac{\partial \mathcal{L}_{\text{MSE}}}{\partial z} \propto (\hat{y} - y)\hat{y}(1-\hat{y})$. Jeżeli dla danej próbki sieć zwraca skrajnie błędną odpowiedź ($\hat{y} \approx 0$ przy $y = 1$), czynnik $\hat{y}(1-\hat{y}) \approx 0$ powoduje nasycenie (saturację) neuronu wyjściowego i wygaszenie gradientu. Z kolei dla entropii krzyżowej (\texttt{BCE}/\texttt{CCE}) logarytm w funkcji straty kompensuje wykładniczy charakter funkcji aktywacji, a gradient względem pobudzenia warstwy wyjściowej upraszcza się analitycznie do postaci liniowej:
+\begin{equation}
+    \frac{\partial \mathcal{L}_{\text{CCE}}}{\partial z} = \frac{1}{N}(\hat{y} - y),
+\end{equation}
+co zapewnia silny sygnał korekcyjny proporcjonalny do błędu nawet w obszarze nasycenia.
+
+\subsection{Porównanie miar błędu w regresji (\texttt{MSE} vs \texttt{MAE}, $N = 10\,000$)}
+
+Tabela \ref{tab:loss_reg} prezentuje porównanie modeli regresyjnych uczonych na pełnym zbiorze $N = 10\,000$ z wykorzystaniem funkcji straty \texttt{MSE} oraz \texttt{MAE}.
+
+\begin{table}[H]
+\centering
+\caption{Wpływ funkcji straty (\texttt{MSE} vs \texttt{MAE}) na dokładność regresji dla architektury \texttt{1-16-8-1} ($N = 10\,000$).}
+\label{tab:loss_reg}
+\vspace{0.2cm}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llccccc}
+\toprule
+\textbf{Zbiór} & \textbf{Aktywacja} & \textbf{Funkcja straty} & \textbf{Best Epoch} & \textbf{RMSE inside} & \textbf{RMSE outside} & \textbf{Test MAE (całość)} \\
+\midrule
+\texttt{activation} & \texttt{sigmoid} & \textbf{\texttt{mse}} & 199 & \textbf{0.3296} & 8.2680 & \textbf{2.7452} \\
+\texttt{activation} & \texttt{sigmoid} & \textbf{\texttt{mae}} & 105 & 3.6358 & \textbf{2.8047} & 3.1096 \\
+\midrule
+\texttt{activation} & \texttt{tanh} & \textbf{\texttt{mse}} & 200 & \textbf{0.0344} & \textbf{2.2145} & \textbf{0.6794} \\
+\texttt{activation} & \texttt{tanh} & \textbf{\texttt{mae}} & 55 & 4.2324 & 9.0809 & 4.7450 \\
+\midrule
+\texttt{activation} & \texttt{relu} & \textbf{\texttt{mse}} & 188 & \textbf{0.3158} & 43.5254 & \textbf{11.8431} \\
+\texttt{activation} & \texttt{relu} & \textbf{\texttt{mae}} & 103 & 4.9696 & \textbf{38.4464} & 14.4128 \\
+\midrule
+\texttt{cube} & \texttt{sigmoid} & \textbf{\texttt{mse}} & 200 & \textbf{0.3606} & \textbf{287.8840} & \textbf{82.3816} \\
+\texttt{cube} & \texttt{sigmoid} & \textbf{\texttt{mae}} & 165 & 3.3958 & 351.4926 & 107.3703 \\
+\midrule
+\texttt{cube} & \texttt{tanh} & \textbf{\texttt{mse}} & 193 & \textbf{0.1658} & \textbf{328.3704} & \textbf{92.7132} \\
+\texttt{cube} & \texttt{tanh} & \textbf{\texttt{mae}} & 82 & 3.1640 & 424.1213 & 135.7048 \\
+\midrule
+\texttt{cube} & \texttt{relu} & \textbf{\texttt{mse}} & 183 & \textbf{0.7193} & 238.2601 & 77.0474 \\
+\texttt{cube} & \texttt{relu} & \textbf{\texttt{mae}} & 123 & 3.8532 & \textbf{191.3971} & \textbf{56.7501} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Z analizy Tabeli \ref{tab:loss_reg} wynikają dwa kluczowe spostrzeżenia:
+\begin{enumerate}
+    \item \textbf{Ponad stukrotnie wyższa precyzja \texttt{MSE} wewnątrz zakresu danych uczących (\texttt{RMSE inside}):}
+    Dla wszystkich badanych funkcji aktywacji uczenie z miarą \texttt{MSE} daje radykalnie niższy błąd interpolacji niż uczenie z \texttt{MAE}. Dla aktywacji \texttt{tanh} na zbiorze \texttt{activation} błąd \texttt{RMSE inside} wynosi $\mathbf{0.0344}$ przy \texttt{MSE} wobec $4.2324$ przy \texttt{MAE} (\textbf{ponad 120-krotna różnica!}), a na zbiorze \texttt{cube} odpowiednio $\mathbf{0.1658}$ wobec $3.1640$ (\textbf{19-krotna różnica}). Co więcej, w pięciu na sześć badanych przypadków sieci uczone przez \texttt{MSE} osiągają niższy końcowy błąd bezwzględny \texttt{Test MAE} niż sieci optymalizujące bezpośrednio funkcję \texttt{MAE}.
+    
+    \textbf{Uzasadnienie matematyczne:} Pochodna funkcji \texttt{MSE} względem predykcji wynosi $\frac{2}{N}(\hat{y} - y)$, dzięki czemu w miarę zbliżania się do minimum lokalnego długość kroku gradientowego naturalnie maleje do zera, pozwalając sieci na bardzo dokładne osiadanie w minimum. Pochodna funkcji \texttt{MAE} jest natomiast funkcją znakową $\frac{1}{N}\text{sign}(\hat{y} - y) \in \{-\frac{1}{N}, +\frac{1}{N}\}$ o stałej wartości bezwzględnej niezależnie od wielkości błędu. Przy stałym współczynniku uczenia ($\eta = 0.03$) i pędzie ($\gamma = 0.9$) oraz 250 krokach na epokę powoduje to silne oscylacje wokół minimum, co widać po bardzo wczesnym numerze najlepszej epoki walidacyjnej (\texttt{Best Epoch} $= 55-123$ dla \texttt{MAE} wobec $183-200$ dla \texttt{MSE}).
+    \item \textbf{Większa odporność \texttt{MAE} na punkty skrajne przy ekstrapolacji:}
+    Ponieważ \texttt{MAE} karze duże błędy liniowo (a nie kwadratowo jak \texttt{MSE}), aktualizacje wag nie są zdominowane przez pojedyncze punkty z brzegów dziedziny. Dzięki temu w konfiguracjach \texttt{activation + sigmoid}, \texttt{activation + relu} oraz \texttt{cube + relu} model uczony z \texttt{MAE} uzyskał niższy błąd ekstrapolacji poza zakresem treningowym (\texttt{RMSE outside}).
+\end{enumerate}
+
+\screenshot{report/fig7_loss_mse_vs_mae.png}{Porównanie krzywych regresji oraz przebiegu błędu walidacyjnego dla \texttt{MSE} vs \texttt{MAE} na zbiorze \texttt{activation} (architektura \texttt{1-16-8-1}, \texttt{tanh}) -- widoczna gładka zbieżność \texttt{MSE} oraz oscylacje straty walidacyjnej dla \texttt{MAE}.}
+
+\newpage
+
+\section{Podsumowanie i wnioski końcowe}
+
+Przeprowadzone eksperymenty na zbiorach $N = 10\,000$ oraz $N = 500$ pozwalają sformułować następujące rekomendacje dotyczące projektowania sieci MLP:
+\begin{enumerate}
+    \item \textbf{Dobór funkcji aktywacji:} W warstwach ukrytych funkcje \texttt{tanh} oraz \texttt{relu} zdecydowanie przewyższają klasyczną funkcję sigmoidalną pod względem dokładności interpolacji oraz szybkości obliczeń (trening z \texttt{relu} jest do $40\%$ szybszy czasowo dzięki brakowi operacji $\exp$). W zadaniach regresji gładkich funkcji najlepszą dokładność wewnątrz dziedziny zapewnia \texttt{tanh} ($\text{RMSE}_{\text{in}} = 0.0133 - 0.0344$ na \texttt{activation}), natomiast przy konieczności ekstrapolacji funkcji szybko rosnących poza zakres treningowy lepiej sprawdza się nieograniczona funkcja \texttt{relu}.
+    \item \textbf{Dobór architektury w zależności od rozmiaru zbioru danych:} Sieć bez warstw ukrytych (0 warstw) jest równoważna modelowi liniowemu i sprawdza się wyłącznie dla danych liniowo separowalnych (\texttt{simple}). Dla małych zbiorów uczących ($N = 500$) optymalne są sieci o \textbf{1--3 warstwach ukrytych}, a przy 4 warstwach następuje przeuczenie. Z kolei dla dużego zbioru uczącego ($N = 10\,000$) zwiększanie głębokości aż do \textbf{4 warstw ukrytych} (\texttt{[16, 16, 8, 4]}) daje monotoniczną poprawę dokładności aproksymacji trudnych funkcji nieliniowych ($\text{RMSE}_{\text{in}} = 0.0894$ dla \texttt{tanh} oraz $0.2080$ dla \texttt{relu} na zbiorze \texttt{cube}).
+    \item \textbf{Dobór miary błędu:} W zadaniach klasyfikacji entropia krzyżowa (\texttt{BCE}/\texttt{CCE}) w parze z wyjściem \texttt{sigmoid}/\texttt{softmax} zapewnia szybszą zbieżność w pierwszych epokach oraz większą odporność na saturację warstw sigmoidalnych niż \texttt{MSE}. W zadaniach regresji przy stałym kroku uczenia funkcja \texttt{MSE} gwarantuje brak oscylacji wokół minimum i ponad stukrotnie wyższą dokładność interpolacji wewnątrz zakresu treningowego niż \texttt{MAE}.
+\end{enumerate}
+
+\end{document}
+
+\end{document}
