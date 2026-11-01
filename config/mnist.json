@@ -1,0 +1,24 @@
+{
+  "seed": 42,
+  "network": {
+    "layers": [784, 128, 64, 10],
+    "activations": ["relu", "relu", "softmax"],
+    "use_bias": true
+  },
+  "training": {
+    "loss": "cce",
+    "learning_rate": 0.01,
+    "momentum": 0.9,
+    "epochs": 20,
+    "batch_size": 128,
+    "validation_fraction": 0.1
+  },
+  "data": {
+    "task": "classification",
+    "format": "mnist_idx",
+    "train_images": "data/MNIST/train-images.idx3-ubyte",
+    "train_labels": "data/MNIST/train-labels.idx1-ubyte",
+    "test_images": "data/MNIST/t10k-images.idx3-ubyte",
+    "test_labels": "data/MNIST/t10k-labels.idx1-ubyte"
+  }
+}

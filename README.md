@@ -99,6 +99,16 @@ Przykład konfiguracji (`config/config.json`):
   - Regresja (1 neuron wyjściowy + `"linear"`): `"mse"` lub `"mae"`
 - `data.task`: `"classification"` lub `"regression"`.
 
+### Uczenie i ocena na MNIST
+
+Uruchamianie dla MNIST
+
+
+```bash
+python src/main.py --config config/mnist.json --no-plots
+```
+
+
 ---
 
 ## 4. Struktura projektu
@@ -106,7 +116,8 @@ Przykład konfiguracji (`config/config.json`):
 ```text
 .
 ├── config/
-│   └── config.json               # Domyślna konfiguracja pojedynczego uruchomienia
+│   ├── config.json               # Domyślna konfiguracja pojedynczego uruchomienia
+│   └── mnist.json                # Konfiguracja MNIST
 ├── data/
 │   ├── classification/           # Zbiory klasyfikacyjne 
 │   └── regression/               # Zbiory regresyjne 

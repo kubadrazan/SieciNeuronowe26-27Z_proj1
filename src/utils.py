@@ -1,3 +1,6 @@
+import struct
+from pathlib import Path
+
 import numpy as np
 
 
@@ -64,6 +67,20 @@ def load_classification_csv(filepath: str) -> tuple[np.ndarray, np.ndarray]:
     X = data[:, :-1]
     y = data[:, -1:]
     return X, y
+
+
+def load_mnist_idx(
+    images_filepath: str | Path, labels_filepath: str | Path
+) -> tuple[np.ndarray, np.ndarray]:
+    with open(images_filepath, "rb") as images_file:
+        _, image_count, rows, columns = struct.unpack(">IIII", images_file.read(16))
+        images = np.fromfile(images_file, dtype=np.uint8)
+
+    with open(labels_filepath, "rb") as labels_file:
+        labels_file.seek(8)
+        labels = np.fromfile(labels_file, dtype=np.uint8)
+
+    return images.reshape(image_count, rows * columns), labels.reshape(image_count, 1)
 
 
 def train_val_split(

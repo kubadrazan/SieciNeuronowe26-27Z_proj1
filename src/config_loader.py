@@ -95,7 +95,24 @@ def validate_config(config: dict) -> None:
             "Brak wymaganej sekcji 'data' lub jest ona pusta w konfiguracji."
         )
 
-    required_data_keys = ["task", "train_file", "test_file"]
+    data_format = data.get("format", "csv")
+    if data_format == "csv":
+        required_data_keys = ["task", "train_file", "test_file"]
+    elif data_format == "mnist_idx":
+        if data.get("task") != "classification":
+            raise ValueError("Format 'mnist_idx' wymaga zadania klasyfikacji.")
+        required_data_keys = [
+            "task",
+            "train_images",
+            "train_labels",
+            "test_images",
+            "test_labels",
+        ]
+    else:
+        raise ValueError(
+            f"Nieobsługiwany format danych: {data_format}. Dozwolone: 'csv', 'mnist_idx'."
+        )
+
     for key in required_data_keys:
         if key not in data:
             raise ValueError(f"Brak wymaganego klucza '{key}' w sekcji 'data'.")
@@ -126,6 +143,10 @@ def print_config(config: dict) -> None:
         f"  Trening: loss={train['loss']}, lr={train['learning_rate']}, "
         f"momentum={train.get('momentum', 0.0)}, epoki={train['epochs']}, batch_size={train['batch_size']}"
     )
-    print(
-        f"  Dane: task={data['task']}, train={data['train_file']}, test={data['test_file']}"
-    )
+    if data.get("format", "csv") == "mnist_idx":
+        print("  Dane: MNIST IDX")
+    else:
+        print(
+            f"  Dane: task={data['task']}, train={data['train_file']}, "
+            f"test={data['test_file']}"
+        )
