@@ -35,7 +35,9 @@ def plot_loss(history: dict, output_path: Path) -> None:
     _save_figure(fig, output_path)
 
 
-def plot_weight_evolution(history: dict, output_dir: Path) -> list[Path]:
+def plot_weight_evolution(
+    history: dict, output_dir: Path, max_lines: int = 300
+) -> list[Path]:
     weights = history.get("weights")
     if not weights:
         raise ValueError("Historia treningu nie zawiera ewolucji wag.")
@@ -45,12 +47,18 @@ def plot_weight_evolution(history: dict, output_dir: Path) -> list[Path]:
     for layer_index in range(len(weights[0])):
         fig, ax = plt.subplots(figsize=(10, 6))
         layer_weights = np.stack([epoch[layer_index]["W"].ravel() for epoch in weights])
-        colors = plt.get_cmap("turbo")(np.linspace(0.0, 1.0, layer_weights.shape[1]))
-        for weight_index in range(layer_weights.shape[1]):
+        total_weights = layer_weights.shape[1]
+        if total_weights > max_lines:
+            plot_indices = np.linspace(0, total_weights - 1, max_lines, dtype=int)
+        else:
+            plot_indices = np.arange(total_weights)
+
+        colors = plt.get_cmap("turbo")(np.linspace(0.0, 1.0, len(plot_indices)))
+        for idx, weight_index in enumerate(plot_indices):
             ax.plot(
                 epochs,
                 layer_weights[:, weight_index],
-                color=colors[weight_index],
+                color=colors[idx],
                 alpha=0.35,
                 linewidth=0.7,
             )

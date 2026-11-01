@@ -9,7 +9,8 @@ def make_rng(seed: int | None = None) -> np.random.Generator:
 
 
 class Standardizer:
-    def __init__(self):
+    def __init__(self, min_scale: float = 1e-2):
+        self.min_scale = min_scale
         self.mean: np.ndarray | None = None
         self.scale: np.ndarray | None = None
 
@@ -17,7 +18,7 @@ class Standardizer:
         self.mean = np.mean(X, axis=0)
         self.scale = np.std(X, axis=0)
 
-        self.scale[self.scale == 0.0] = 1.0
+        self.scale[self.scale < self.min_scale] = 1.0
         return self
 
     def transform(self, X: np.ndarray) -> np.ndarray:
@@ -80,7 +81,22 @@ def load_mnist_idx(
         labels_file.seek(8)
         labels = np.fromfile(labels_file, dtype=np.uint8)
 
-    return images.reshape(image_count, rows * columns), labels.reshape(image_count, 1)
+    X = images.reshape(image_count, rows * columns).astype(np.float64) / 255.0
+    return X, labels.reshape(image_count, 1)
+
+
+def subsample_data(
+    X: np.ndarray,
+    y: np.ndarray,
+    max_samples: int | None,
+    rng: np.random.Generator | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    if max_samples is None or max_samples >= X.shape[0]:
+        return X, y
+    if rng is None:
+        rng = make_rng()
+    indices = rng.choice(X.shape[0], size=max_samples, replace=False)
+    return X[indices], y[indices]
 
 
 def train_val_split(

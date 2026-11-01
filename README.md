@@ -30,6 +30,12 @@ python src/main.py --config config/config.json --plot-dir plots/moj_eksperyment
 
 # Uruchomienie bez generowania wykresów
 python src/main.py --no-plots
+
+# Uruchomienie dla MNIST (pełny zbiór)
+python src/main.py --config config/mnist.json --no-plots
+
+# Szybkie uruchomienie dla MNIST na ograniczonym podzbiorze próbek (np. 10000 train, 2000 test)
+python src/main.py --config config/mnist.json --max-train-samples 10000 --max-test-samples 2000 --no-plots
 ```
 
 ### B. Silnik badań eksperymentalnych (`src/experiments.py`)
@@ -49,7 +55,7 @@ python src/experiments.py --study activations
 # Uruchomienie wyłącznie badania architektury na wybranych zbiorach
 python src/experiments.py --study architecture --datasets three_gauss cube --size 1000 --epochs 150
 
-# Uruchomienie badania funkcji straty dla kilku ziaren losowości 
+# Uruchomienie badania funkcji straty dla kilku ziaren losowości
 python src/experiments.py --study losses --seeds 42 --output results/losses_multi_seed.csv
 ```
 
@@ -63,7 +69,7 @@ python src/experiments.py --study losses --seeds 42 --output results/losses_mult
 
 ---
 
-## 3. Konfiguracja modelu (`config/config.json`)
+## 3. Konfiguracja modelu (`config/config.json`, `config/mnist.json`)
 
 Przykład konfiguracji (`config/config.json`):
 
@@ -98,16 +104,7 @@ Przykład konfiguracji (`config/config.json`):
   - Klasyfikacja wieloklasowa ($K$ neuronów wyjściowych + `"softmax"`): `"cce"` lub `"mse"`
   - Regresja (1 neuron wyjściowy + `"linear"`): `"mse"` lub `"mae"`
 - `data.task`: `"classification"` lub `"regression"`.
-
-### Uczenie i ocena na MNIST
-
-Uruchamianie dla MNIST
-
-
-```bash
-python src/main.py --config config/mnist.json --no-plots
-```
-
+- `data.max_train_samples` / `data.max_test_samples` *(opcjonalne)*: ograniczenie liczby próbek losowanych ze zbioru uczącego/testowego (deterministycznie względem `seed`).
 
 ---
 
@@ -117,23 +114,23 @@ python src/main.py --config config/mnist.json --no-plots
 .
 ├── config/
 │   ├── config.json               # Domyślna konfiguracja pojedynczego uruchomienia
-│   └── mnist.json                # Konfiguracja MNIST
+│   └── mnist.json                # Konfiguracja dla zbioru MNIST
 ├── data/
-│   ├── classification/           # Zbiory klasyfikacyjne 
-│   └── regression/               # Zbiory regresyjne 
-├── plots/                        # Wygenerowane wykresy 
-├── results/                      # Wyniki badań eksperymentalnych 
-├── src/
-│   ├── main.py                   # Punkt wejścia dla pojedynczego treningu i ewaluacji
-│   ├── experiments.py            # Silnik badań eksperymentalnych
-│   ├── generate_report_plots.py  # Generator wykresów porównawczych do raportu
-│   ├── mlp.py                    # Implementacja warstw Dense i sieci MLP
-│   ├── activations.py            # Funkcje aktywacji i ich pochodne
-│   ├── losses.py                 # Funkcje straty (MSE, MAE, BCE, CCE)
-│   ├── initializers.py           # Inicjalizacja wag (He, Xavier)
-│   ├── optimizers.py             # Optymalizator SGD z momentum
-│   ├── config_loader.py          # Walidacja i wczytywanie pliku JSON
-│   ├── utils.py                  # Wczytywanie CSV, standaryzacja, podział train/val
-│   └── visualization.py          # Rysowanie granic decyzyjnych, regresji, straty i wag
-├── 
+│   ├── classification/           # Zbiory klasyfikacyjne
+│   ├── regression/               # Zbiory regresyjne
+│   └── MNIST/                    # Zbiór MNIST w formacie binarnym IDX
+├── plots/                        # Wygenerowane wykresy
+├── results/                      # Wyniki badań eksperymentalnych (.csv)
+└── src/
+    ├── main.py                   # Punkt wejścia dla pojedynczego treningu i ewaluacji
+    ├── experiments.py            # Silnik badań eksperymentalnych
+    ├── generate_report_plots.py  # Generator wykresów porównawczych do raportu
+    ├── mlp.py                    # Implementacja warstw Dense i sieci MLP
+    ├── activations.py            # Funkcje aktywacji i ich pochodne
+    ├── losses.py                 # Funkcje straty (MSE, MAE, BCE, CCE)
+    ├── initializers.py           # Inicjalizacja wag (He, Xavier)
+    ├── optimizers.py             # Optymalizator SGD z momentum
+    ├── config_loader.py          # Walidacja i wczytywanie pliku JSON
+    ├── utils.py                  # Wczytywanie CSV/IDX, standaryzacja, podział train/val
+    └── visualization.py          # Rysowanie granic decyzyjnych, regresji, straty i wag
 ```

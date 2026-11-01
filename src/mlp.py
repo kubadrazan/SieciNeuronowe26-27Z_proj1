@@ -46,6 +46,10 @@ class Dense:
             self.z = a_prev @ self.W
         return self.activation.forward(self.z)
 
+    def predict(self, a_prev: np.ndarray) -> np.ndarray:
+        z = a_prev @ self.W + self.b if self.use_bias else a_prev @ self.W
+        return self.activation.forward(z)
+
     def backward(self, da: np.ndarray) -> np.ndarray:
         dz = self.activation.backward(da, self.z)
         self.dW = self.a_prev.T @ dz
@@ -107,7 +111,10 @@ class MLP:
         return out
 
     def predict(self, X: np.ndarray) -> np.ndarray:
-        return self.forward(X)
+        out = X
+        for layer in self.dense_layers:
+            out = layer.predict(out)
+        return out
 
     def get_params(self) -> list[dict[str, np.ndarray]]:
         params = []
@@ -180,12 +187,12 @@ class MLP:
 
                 optimizer.step(self.dense_layers)
 
-            train_preds = self.forward(X)
+            train_preds = self.predict(X)
             train_loss = self.loss_fn.forward(train_preds, y)
             history["train_loss"].append(train_loss)
 
             if X_val is not None and y_val is not None:
-                val_preds = self.forward(X_val)
+                val_preds = self.predict(X_val)
                 val_loss = self.loss_fn.forward(val_preds, y_val)
                 history["val_loss"].append(val_loss)
             else:

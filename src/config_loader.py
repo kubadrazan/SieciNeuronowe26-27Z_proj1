@@ -122,6 +122,13 @@ def validate_config(config: dict) -> None:
             f"Nieobsługiwane zadanie w 'data.task': {data['task']}. Dozwolone: 'regression', 'classification'."
         )
 
+    for sample_key in ("max_train_samples", "max_test_samples"):
+        val = data.get(sample_key)
+        if val is not None and (not isinstance(val, int) or isinstance(val, bool) or val <= 0):
+            raise ValueError(
+                f"Parametr 'data.{sample_key}' musi być dodatnią liczbą całkowitą, otrzymano: {val}"
+            )
+
 
 def load_config(config_path: Path) -> dict:
     with open(config_path, "r", encoding="utf-8") as f:
@@ -143,10 +150,17 @@ def print_config(config: dict) -> None:
         f"  Trening: loss={train['loss']}, lr={train['learning_rate']}, "
         f"momentum={train.get('momentum', 0.0)}, epoki={train['epochs']}, batch_size={train['batch_size']}"
     )
+    limits_info = []
+    if data.get("max_train_samples") is not None:
+        limits_info.append(f"max_train={data['max_train_samples']}")
+    if data.get("max_test_samples") is not None:
+        limits_info.append(f"max_test={data['max_test_samples']}")
+    limits_str = f" ({', '.join(limits_info)})" if limits_info else ""
+
     if data.get("format", "csv") == "mnist_idx":
-        print("  Dane: MNIST IDX")
+        print(f"  Dane: MNIST IDX{limits_str}")
     else:
         print(
             f"  Dane: task={data['task']}, train={data['train_file']}, "
-            f"test={data['test_file']}"
+            f"test={data['test_file']}{limits_str}"
         )

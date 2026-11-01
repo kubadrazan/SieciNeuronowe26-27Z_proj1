@@ -14,6 +14,7 @@ from utils import (
     load_regression_csv,
     make_rng,
     one_hot,
+    subsample_data,
     train_val_split,
 )
 from visualization import (
@@ -41,6 +42,18 @@ def parse_args() -> argparse.Namespace:
         "--no-plots",
         action="store_true",
         help="Pomiń generowanie wykresów.",
+    )
+    parser.add_argument(
+        "--max-train-samples",
+        type=int,
+        default=None,
+        help="Ogranicz liczbę próbek zbioru uczącego (przyspieszenie wstępnych eksperymentów).",
+    )
+    parser.add_argument(
+        "--max-test-samples",
+        type=int,
+        default=None,
+        help="Ogranicz liczbę próbek zbioru testowego.",
     )
     return parser.parse_args()
 
@@ -104,6 +117,7 @@ def run_from_config(
         print_config(config)
 
     root = Path(__file__).resolve().parent.parent
+    seed = config.get("seed", 42)
     data_cfg = config["data"]
     task = data_cfg["task"]
     data_format = data_cfg.get("format", "csv")
@@ -115,6 +129,12 @@ def run_from_config(
         X_train, y_train = load_regression_csv(str(root / data_cfg["train_file"]))
     else:
         X_train, y_train = load_classification_csv(str(root / data_cfg["train_file"]))
+
+    max_train_samples = data_cfg.get("max_train_samples")
+    if max_train_samples is not None:
+        X_train, y_train = subsample_data(
+            X_train, y_train, max_train_samples, rng=make_rng(seed)
+        )
 
     model = build_model(config)
     if model.layers[0] != X_train.shape[1]:
@@ -147,7 +167,7 @@ def run_from_config(
         X_train,
         y_train,
         val_frac=config["training"].get("validation_fraction", 0.2),
-        rng=make_rng(config.get("seed", 42)),
+        rng=make_rng(seed),
     )
     if create_plots:
         X_train_raw = X_train.copy()
@@ -196,6 +216,12 @@ def run_from_config(
     else:
         X_test_raw, y_test = load_classification_csv(str(root / data_cfg["test_file"]))
 
+    max_test_samples = data_cfg.get("max_test_samples")
+    if max_test_samples is not None:
+        X_test_raw, y_test = subsample_data(
+            X_test_raw, y_test, max_test_samples, rng=make_rng(seed)
+        )
+
     if X_train.shape[1] != X_test_raw.shape[1]:
         raise ValueError(
             "Liczba cech w zbiorach treningowym i testowym musi być taka sama."
@@ -225,7 +251,7 @@ def run_from_config(
 
     if verbose:
         print(
-            f"Trening zakończony! Końcowa strata treningowa: " f"{train_loss_final:.6f}"
+            f"Trening zakończony! Końcowa strata treningowa: {train_loss_final:.6f}"
         )
         print(f"Strata testowa: {test_loss:.6f}")
         print(f"Strata walidacyjna: {val_loss_final:.6f}")
@@ -282,6 +308,7 @@ def run_from_config(
         results["val_acc"] = val_acc
         results["test_acc"] = test_acc
         if verbose:
+            print(f"Validation accuracy: {val_acc:.4f}")
             print(f"Test accuracy: {test_acc:.4f}")
 
     if create_plots:
@@ -328,8 +355,15 @@ def run(
     config_path: Path,
     plot_dir: Path | None = None,
     create_plots: bool = True,
+    max_train_samples: int | None = None,
+    max_test_samples: int | None = None,
 ) -> dict:
     config = load_config(config_path)
+    if max_train_samples is not None:
+        config["data"]["max_train_samples"] = max_train_samples
+    if max_test_samples is not None:
+        config["data"]["max_test_samples"] = max_test_samples
+
     root = Path(__file__).resolve().parent.parent
     if create_plots and plot_dir is None:
         plot_dir = root / "plots" / config_path.stem
@@ -343,4 +377,10 @@ def run(
 
 if __name__ == "__main__":
     args = parse_args()
-    run(args.config, args.plot_dir, create_plots=not args.no_plots)
+    run(
+        args.config,
+        args.plot_dir,
+        create_plots=not args.no_plots,
+        max_train_samples=args.max_train_samples,
+        max_test_samples=args.max_test_samples,
+    )
