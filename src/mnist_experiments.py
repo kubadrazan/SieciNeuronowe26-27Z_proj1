@@ -114,79 +114,79 @@ def generate_mnist_specs(seed: int = 42) -> list[dict]:
     specs: list[dict] = []
 
     # 1. Badanie architektury na podzbiorze N=10000 (0 do 3 warstw ukrytych)
-    # architectures = [
-    #     [],
-    #     [64],
-    #     [128],
-    #     [256],
-    #     [128, 64],
-    #     [256, 128],
-    #     [256, 128, 64],
-    # ]
-    # for arch in architectures:
-    #     specs.append(
-    #         build_mnist_spec(
-    #             study_name="arch_10k",
-    #             hidden_layers=arch,
-    #             hidden_activation="relu",
-    #             loss="cce",
-    #             lr=0.01,
-    #             batch_size=128,
-    #             epochs=15,
-    #             max_train_samples=10000,
-    #             max_test_samples=2000,
-    #             seed=seed,
-    #         )
-    #     )
+    architectures = [
+        [],
+        [64],
+        [128],
+        [256],
+        [128, 64],
+        [256, 128],
+        [256, 128, 64],
+    ]
+    for arch in architectures:
+        specs.append(
+            build_mnist_spec(
+                study_name="arch_10k",
+                hidden_layers=arch,
+                hidden_activation="relu",
+                loss="cce",
+                lr=0.01,
+                batch_size=128,
+                epochs=15,
+                max_train_samples=10000,
+                max_test_samples=2000,
+                seed=seed,
+            )
+        )
 
-    # # 2. Badanie funkcji aktywacji i funkcji straty na N=10000 (architektura [128, 64])
-    # act_loss_variants = [
-    #     ("relu", "cce"),
-    #     ("tanh", "cce"),
-    #     ("sigmoid", "cce"),
-    #     ("relu", "mse"),
-    #     ("tanh", "mse"),
-    # ]
-    # for act, loss_name in act_loss_variants:
-    #     specs.append(
-    #         build_mnist_spec(
-    #             study_name="act_loss_10k",
-    #             hidden_layers=[128, 64],
-    #             hidden_activation=act,
-    #             loss=loss_name,
-    #             lr=0.01,
-    #             batch_size=128,
-    #             epochs=15,
-    #             max_train_samples=10000,
-    #             max_test_samples=2000,
-    #             seed=seed,
-    #         )
-    #     )
+    # 2. Badanie funkcji aktywacji i funkcji straty na N=10000 (architektura [128, 64])
+    act_loss_variants = [
+        ("relu", "cce"),
+        ("tanh", "cce"),
+        ("sigmoid", "cce"),
+        ("relu", "mse"),
+        ("tanh", "mse"),
+    ]
+    for act, loss_name in act_loss_variants:
+        specs.append(
+            build_mnist_spec(
+                study_name="act_loss_10k",
+                hidden_layers=[128, 64],
+                hidden_activation=act,
+                loss=loss_name,
+                lr=0.01,
+                batch_size=128,
+                epochs=15,
+                max_train_samples=10000,
+                max_test_samples=2000,
+                seed=seed,
+            )
+        )
 
-    # # 3. Badanie hiperparametrow optymalizacji (learning_rate oraz batch_size) na N=10000 ([128, 64])
-    # hyperparam_variants = [
-    #     (0.002, 128),
-    #     (0.01, 128),
-    #     (0.05, 128),
-    #     (0.01, 32),
-    #     (0.01, 64),
-    #     (0.01, 256),
-    # ]
-    # for lr, bs in hyperparam_variants:
-    #     specs.append(
-    #         build_mnist_spec(
-    #             study_name="hyperparams_10k",
-    #             hidden_layers=[128, 64],
-    #             hidden_activation="relu",
-    #             loss="cce",
-    #             lr=lr,
-    #             batch_size=bs,
-    #             epochs=15,
-    #             max_train_samples=10000,
-    #             max_test_samples=2000,
-    #             seed=seed,
-    #         )
-    #     )
+    # 3. Badanie hiperparametrow optymalizacji (learning_rate oraz batch_size) na N=10000 ([128, 64])
+    hyperparam_variants = [
+        (0.002, 128),
+        (0.01, 128),
+        (0.05, 128),
+        (0.01, 32),
+        (0.01, 64),
+        (0.01, 256),
+    ]
+    for lr, bs in hyperparam_variants:
+        specs.append(
+            build_mnist_spec(
+                study_name="hyperparams_10k",
+                hidden_layers=[128, 64],
+                hidden_activation="relu",
+                loss="cce",
+                lr=lr,
+                batch_size=bs,
+                epochs=15,
+                max_train_samples=10000,
+                max_test_samples=2000,
+                seed=seed,
+            )
+        )
 
     # 4. Porownanie najlepszych konfiguracji: N=10000 vs pelny zbior N=60000 (pelny test N_test=10000, 20 epok)
     best_configs = [
