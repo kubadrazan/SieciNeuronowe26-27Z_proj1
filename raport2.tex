@@ -1,0 +1,361 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage[polish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{svg}
+\usepackage{float}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{xcolor}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{minted}
+\usemintedstyle{vs}
+\usepackage{biblatex}
+\addbibresource{references.bib}
+
+
+\geometry{margin=2.5cm}
+
+\newcommand{\screenshotplaceholder}[2]{
+    \begin{figure}[H]
+        \centering
+        \fbox{
+            \begin{minipage}[c][5.5cm]{0.85\textwidth}
+                 \centering
+                \vspace{2.0cm}
+                \textbf{\large #1} \\
+                \vspace{0.3cm}
+                \textit{(#2)}
+            \end{minipage}
+        }
+        \caption{#1 -- #2}
+    \end{figure}
+}
+
+\newcommand{\screenshot}[2]{
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.98\textwidth]{#1}
+        \caption{#2}
+    \end{figure}
+}
+
+
+\title{%
+
+    \begin{figure}[h]
+        \centering
+        \hspace*{-1.5cm}
+        \includesvg[scale = 1.5]{MiNI_logo}
+    \end{figure}
+    
+    \vspace{\baselineskip}
+    \vspace{\baselineskip}
+    \Huge \textbf{Sieci Neuronowe} \\
+    \Huge Projekt 1 - część 2
+     \vfill
+    }
+\author{Autorzy: Jan Czemko, Kuba Drażan
+    \vspace{\baselineskip} }
+
+\date{Październik 2026}
+
+% Każdy projekt polega na wykonaniu eksperymentu (eksperymentów) mających zbadać działanie zadanej sieci neuronowej i zaprezentowaniu przeprowadzonych eksperymentów i wniosków w formie raportu. Wykonanie samego programu, bez raportu, nie wystarcza do zaliczenia. Jeśli zostały przeprowadzone jakieś eksperymenty lub inne działania, które nie są opisane w raporcie, nie są one brane pod uwagę przy ocenie projektu. 
+
+% Każdy raport musi zawierać:
+
+% opis rozwiązywanego problemu, zrozumiały dla osoby, która nie widziała treści zadania,
+% opis zastosowanej sieci i jej implementacji,
+% opis przeprowadzonych eksperymentów,
+% wyniki (prezentowane w czytelny sposób) i wnioski,
+% bibliografię z odwołaniami w tekście (bez pozycji "wiszących", czyli takich bez odnośników w tekście)
+% Struktura raportu: streszczenie, wstęp, część główna, podsumowanie z wnioskami, bibliografia.
+
+\begin{document}
+
+\maketitle
+
+\newpage
+
+\section{Streszczenie}
+
+Celem drugiej części projektu było zastosowanie własnej implementacji wielowarstwowego perceptronu (MLP), wykonanej w ramach części pierwszej, do rozwiązania problemu rozpoznawania ręcznie pisanych cyfr ze zbioru \textbf{MNIST}. Zgodnie z założeniami, nie wprowadzano do modelu nowych rodzajów warstw ani dodatkowych mechanizmów regularyzacyjnych, a skupiono się na optymalizacji wydajnościowej i numerycznej istniejącego kodu oraz systematycznym doborze hiperparametrów sieci.
+
+W celu przyspieszenia procesu badawczego zastosowano dwuetapową procedurę eksperymentalną. W pierwszym etapie przeprowadzono przegląd architektur (od 0 do 3 warstw ukrytych), funkcji aktywacji (\texttt{ReLU}, \texttt{tanh}, \texttt{sigmoid}), miar błędu (\texttt{CCE} vs \texttt{MSE}) oraz parametrów optymalizacji (\texttt{learning\_rate}, \texttt{batch\_size}) na losowym podzbiorze uczącym o rozmiarze $N = 10\,000$. W drugim etapie najlepsze wyłonione konfiguracje wytrenowano na pełnym zbiorze uczącym ($N = 60\,000$, z podziałem na $54\,000$ próbek treningowych i $6\,000$ walidacyjnych) i poddano ostatecznej ocenie na odseparowanym zbiorze testowym ($N_{\text{test}} = 10\,000$). Najlepszy model o architekturze \texttt{784-256-128-10} z aktywacją \texttt{ReLU} i funkcją straty \texttt{CCE} osiągnął dokładność testową na poziomie \textbf{97.62\%}.
+
+\section{Wstęp i opis rozwiązywanego problemu}
+
+Problem optycznego rozpoznawania znaków dla ręcznie pisanych cyfr jest jednym z klasycznych zadań wizji komputerowej oraz uczenia maszynowego. Zadanie polega na przyporządkowaniu obrazowi w skali szarości o rozdzielczości $28 \times 28$ pikseli jednej z $K = 10$ dyskretnych klas odpowiadających cyfrom arabskim $\{0, 1, 2, \dots, 9\}$.
+
+\subsection{Charakterystyka zbioru danych MNIST}
+Zbiór danych \textbf{MNIST} (\textit{Modified National Institute of Standards and Technology}) składa się z dwóch rozłącznych części zapisanych w binarnym formacie \texttt{IDX}:
+\begin{itemize}
+    \item \textbf{Zbiór uczący:} $60\,000$ obrazów treningowych wraz z etykietami.
+    \item \textbf{Zbiór testowy:} $10\,000$ obrazów testowych wraz z etykietami.
+\end{itemize}
+Każdy obraz reprezentowany jest jako macierz $28 \times 28$ bajtów o wartościach jasności pikseli z przedziału $[0, 255]$. Na potrzeby wielowarstwowego perceptronu każdy obraz jest spłaszczany do postaci wektora cech $\mathbf{x} \in \mathbb{R}^{784}$. Przykładowe obrazy wszystkich dziesięciu klas ze zbioru uczącego przedstawiono na Rysunku \ref{fig:samples}.
+
+\screenshot{report2/fig1_mnist_samples.png}{Przykładowe obrazy ręcznie pisanych cyfr ze zbioru uczącego MNIST \label{fig:samples}}
+
+\subsection{Podział danych}
+Zgodnie z wymogami metodologicznymi w procesie uczenia oraz doboru hiperparametrów korzystano \textbf{wyłącznie ze zbioru uczącego}. Zbiór uczący dzielono losowo (z ustalonym ziarnem generatora pseudolosowego $\text{seed} = 42$) w proporcji $90\% / 10\%$ ($\texttt{validation\_fraction} = 0.1$):
+\begin{itemize}
+    \item W eksperymentach wstępnych ($N = 10\,000$): $9\,000$ próbek treningowych oraz $1\,000$ próbek walidacyjnych.
+    \item W pełnym uczeniu ($N = 60\,000$): $54\,000$ próbek treningowych oraz $6\,000$ próbek walidacyjnych.
+\end{itemize}
+Statystyki standaryzacji cech wyznaczano wyłącznie na części treningowej, a zbiór testowy służył wyłącznie do końcowej weryfikacji jakości już nauczonej sieci.
+
+\newpage
+
+\section{Opis zastosowanej sieci i jej implementacji}
+
+Rozwiązanie bazuje bezpośrednio na macierzowej implementacji sieci MLP oraz algorytmu propagacji wstecznej błędu opracowanej w Części I projektu. Sieć składa się z sekwencji warstw gęstych (\texttt{Dense}), realizujących przekształcenie afiniczne $\mathbf{z}^{(l)} = \mathbf{a}^{(l-1)}\mathbf{W}^{(l)} + \mathbf{b}^{(l)}$ oraz nieliniową funkcję aktywacji $\mathbf{a}^{(l)} = f^{(l)}(\mathbf{z}^{(l)})$.
+
+\subsection{Architektura wyjściowa, inicjalizacja wag i optymalizacja}
+\begin{itemize}
+    \item \textbf{Warstwa wyjściowa i funkcja błędu:} Dla klasyfikacji 10-klasowej warstwa wyjściowa liczy $10$ neuronów z funkcją aktywacji \texttt{softmax}:
+    \begin{equation}
+        \hat{y}_c = \frac{\exp(z_c - \max_j z_j)}{\sum_{j=1}^{10} \exp(z_j - \max_k z_k)}, \quad c \in \{1, \dots, 10\},
+    \end{equation}
+    gdzie odjęcie maksimum $\max_j z_j$ gwarantuje pełną stabilność numeryczną wobec nadmiaru (\textit{overflow}). Jako podstawową miarę błędu zastosowano wieloklasową entropię krzyżową (\texttt{CCE}), dla której analityczny sygnał błędu na wyjściu sieci upraszcza się do postaci $\boldsymbol{\delta}^{(L)} = \frac{1}{B}(\hat{\mathbf{Y}} - \mathbf{Y})$, gdzie $B$ oznacza rozmiar mini-batcha.
+    \item \textbf{Inicjalizacja wag:} Dla warstw ukrytych z funkcją aktywacji \texttt{ReLU} zastosowano inicjalizację He z rozkładu normalnego $\mathcal{N}(0, \sqrt{2/n_{\text{in}}})$, zapobiegającą zanikaniu i eksplozji wariancji sygnału przy dużym wymiarze wejścia ($n_{\text{in}} = 784$). Dla funkcji \texttt{tanh}, \texttt{sigmoid} oraz warstwy wyjściowej \texttt{softmax} zastosowano inicjalizację Xaviera/Glorota z rozkładu jednostajnego $\mathcal{U}\big(-\sqrt{6/(n_{\text{in}}+n_{\text{out}})}, \sqrt{6/(n_{\text{in}}+n_{\text{out}})}\big)$.
+    \item \textbf{Optymalizator:} Uczenie prowadzono algorytmem stochastycznego spadku wzdłuż gradientu z pędem (\textit{SGD with momentum}) o współczynniku pędu $\gamma = 0.9$.
+\end{itemize}
+
+\subsection{Optymalizacje kodu pod kątem zbioru MNIST}
+Przejście z dwuwymiarowych zbiorów z Części I ($D = 2$) na zbiór MNIST ($D = 784$, $N = 60\,000$) wymagało wprowadzenia następujących optymalizacji technicznych:
+\begin{enumerate}
+    \item \textbf{Szybki binarny odczyt formatu IDX i normalizacja wstępna:} W module \texttt{src/utils.py} zaimplementowano funkcję \texttt{load\_mnist\_idx}, która odczytuje nagłówki Big-Endian przez moduł \texttt{struct} i ładuje całe tablice pikseli bezpośrednio do bufora \texttt{NumPy} za pomocą \texttt{np.fromfile} (czas wczytania $60\,000$ obrazów wynosi poniżej $0.03\,\text{s}$), od razu skalując wartości z $[0, 255]$ do przedziału $[0, 1]$.
+    % \item \textbf{Zabezpieczenie standaryzatora dla pikseli brzegowych:} Piksele na krawędziach obrazów MNIST są niemal zawsze zerowe (tło). Gdy na pojedynczym obrazie treningowym w rogu pojawi się szum, odchylenie standardowe $\sigma_j$ danej kolumny jest rzędu $10^{-3}$; pojawienie się białego piksela w tej kolumnie w zbiorze testowym powodowałoby skok wartości wejściowej po podzieleniu przez $\sigma_j$. W klasie \texttt{Standardizer} wprowadzono bezpieczny próg $\sigma_{\min} = 10^{-2}$, poniżej którego skala kolumny przyjmuje wartość $1.0$.
+    \item \textbf{Redukcja alokacji pamięci RAM w trakcie treningu:} W klasie \texttt{Dense} rozdzielono metodę treningową \texttt{forward()} (zapisującą aktywacje $\mathbf{a}^{(l-1)}$ oraz potencjały $\mathbf{z}^{(l)}$ dla bieżącego mini-batcha na potrzeby propagacji wstecznej) od bezstanowej metody ewaluacyjnej \texttt{predict()}. Dzięki temu po każdej epoce w pamięci warstw nie są przetrzymywane macierze pośrednie dla wszystkich $54\,000$ próbek treningowych. Dodatkowo zbiór testowy wczytywany jest dopiero po zakończeniu pętli uczącej.
+    \item \textbf{Deterministyczne próbkowanie podzbiorów (\texttt{max\_train\_samples}, \texttt{max\_test\_samples}):} Dodano obsługę losowania mniejszego podzbioru danych z ustalonym ziarnem \texttt{seed}, co pozwoliło kilkukrotnie przyspieszyć wstępne eksperymenty strojenia hiperparametrów.
+\end{enumerate}
+
+% \subsection{Powtarzalność procesu uczenia}
+% Wszystkie operacje losowe korzystają z deterministycznych generatorów \texttt{np.random.default\_rng} inicjowanych z głównego ziarna $\text{seed} = 42$ (lub innego z konfiguracji). Pełna specyfikacja najlepszego zgłoszonego modelu znajduje się w pliku \texttt{config/mnist.json} (Listing \ref{lst:config}) i pozwala na dokładne odtworzenie procesu uczenia poleceniem:
+% \begin{center}
+% \texttt{python src/main.py --config config/mnist.json --no-plots}
+% \end{center}
+
+% \begin{listing}[H]
+% \begin{minted}[frame=lines, fontsize=\small]{json}
+% {
+%   "seed": 42,
+%   "network": {
+%     "layers": [784, 256, 128, 10],
+%     "activations": ["relu", "relu", "softmax"],
+%     "use_bias": true
+%   },
+%   "training": {
+%     "loss": "cce",
+%     "learning_rate": 0.01,
+%     "momentum": 0.9,
+%     "epochs": 20,
+%     "batch_size": 64,
+%     "validation_fraction": 0.1
+%   },
+%   "data": {
+%     "task": "classification",
+%     "format": "mnist_idx",
+%     "train_images": "data/MNIST/train-images.idx3-ubyte",
+%     "train_labels": "data/MNIST/train-labels.idx1-ubyte",
+%     "test_images": "data/MNIST/t10k-images.idx3-ubyte",
+%     "test_labels": "data/MNIST/t10k-labels.idx1-ubyte"
+%   }
+% }
+% \end{minted}
+% \caption{Konfiguracja najlepszego modelu (\texttt{config/mnist.json}) gwarantująca pełną powtarzalność wyniku ($97.62\%$ na zbiorze testowym).}
+% \label{lst:config}
+% \end{listing}
+
+\newpage
+
+\section{Część główna -- Przeprowadzone eksperymenty i analiza wyników}
+
+Zgodnie ze wskazówkami metodycznymi badania podzielono na dwa etapy:
+\begin{enumerate}
+    \item \textbf{Etap wstępny ($N = 10\,000$):} Szybkie przeszukanie przestrzeni architektur, funkcji aktywacji, funkcji straty oraz parametrów optymalizacji na podzbiorze $10\,000$ próbek uczących przez $15$ epok.
+    \item \textbf{Etap właściwy ($N = 60\,000$ vs $N = 10\,000$):} Pełne uczenie czterech najlepszych konfiguracji na całym zbiorze uczącym przez $20$ epok oraz porównanie ich wyników na pełnym zbiorze.
+\end{enumerate}
+
+\subsection{Wpływ architektury sieci na podzbiorze uczącym ($N = 10\,000$)}
+
+W pierwszym eksperymencie zbadano 7 architektur o liczbie warstw ukrytych od $0$ do $3$ (przy aktywacji \texttt{ReLU}, stracie \texttt{CCE}, $\eta = 0.01$, $\gamma = 0.9$ oraz $\texttt{batch\_size} = 128$). Wyniki zestawiono w Tabeli \ref{tab:arch_10k} oraz na Rysunku \ref{fig:tuning}a.
+
+\begin{table}[H]
+\centering
+\caption{Wpływ liczby warstw ukrytych i neuronów na skuteczność uczenia na podzbiorze $N = 10\,000$ ($15$ epok, aktywacja \texttt{ReLU}, strata \texttt{CCE}, $\eta = 0.01$, $\texttt{batch\_size} = 128$).}
+\label{tab:arch_10k}
+\vspace{0.2cm}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{clccccccc}
+\toprule
+\textbf{Warstwy ukryte} & \textbf{Architektura} & \textbf{Liczba wag} & \textbf{Best Epoch} & \textbf{Val Loss (best)} & \textbf{Train Acc} & \textbf{Val Acc} & \textbf{Test Acc ($2\text{k}$)} & \textbf{Czas [s]} \\
+\midrule
+0 (model liniowy) & \texttt{784-10} & $7\,850$ & 9 & 0.3328 & 95.12\% & 89.80\% & 90.70\% & \textbf{2.47} \\
+\midrule
+1 warstwa & \texttt{784-64-10} & $50\,890$ & 15 & 0.1911 & 99.29\% & 93.30\% & 94.25\% & 18.75 \\
+1 warstwa & \texttt{784-128-10} & $101\,770$ & 14 & \textbf{0.1909} & 99.67\% & \textbf{94.50\%} & 94.10\% & 23.19 \\
+1 warstwa & \texttt{784-256-10} & $203\,530$ & 15 & 0.1918 & 99.81\% & 93.80\% & \textbf{94.60\%} & 182.57 \\
+\midrule
+2 warstwy & \texttt{784-128-64-10} & $109\,386$ & 10 & 0.1972 & 99.93\% & 93.40\% & 93.95\% & 30.03 \\
+2 warstwy & \texttt{784-256-128-10} & $235\,146$ & 10 & 0.2013 & 99.99\% & 94.10\% & 94.50\% & 174.53 \\
+\midrule
+3 warstwy & \texttt{784-256-128-64-10} & $242\,762$ & 7 & 0.2033 & \textbf{100.00\%} & 93.80\% & 94.35\% & 182.72 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Analiza wyników z Tabeli \ref{tab:arch_10k} pozwala sformułować trzy istotne wnioski:
+\begin{enumerate}
+    \item \textbf{Ograniczenia klasyfikatora liniowego (0 warstw ukrytych):} Sieć \texttt{784-10} ($7\,850$ parametrów) trenuje się błyskawicznie ($2.47\,\text{s}$) i osiąga niemal $90\%$ dokładności walidacyjnej. Pokazuje to, że znaczna część cyfr w przestrzeni $\mathbb{R}^{784}$ jest separowalna liniowo, jednak bez warstw ukrytych sieć nie potrafi wyodrębnić nieliniowych cech lokalnych (takich jak pętle czy skrzyżowania kresek), przez co błąd walidacyjny zatrzymuje się na poziomie $0.3328$.
+    \item \textbf{Skok jakościowy po wprowadzeniu warstw ukrytych:} Dodanie już jednej warstwy ukrytej (\texttt{784-128-10}) obniża stratę walidacyjną o ponad $42\%$ ($0.3328 \to 0.1909$) i podnosi dokładność walidacyjną z $89.80\%$ do $94.50\%$.
+    \item \textbf{Zjawisko przeuczenia dużych architektur na małym podzbiorze ($N = 10\,000$):} Sieci o 2 i 3 warstwach ukrytych (\texttt{784-256-128-10} oraz \texttt{784-256-128-64-10}) posiadają ponad $235\,000$ parametrów -- czyli ponad \textbf{26-krotnie więcej wag niż próbek treningowych}. W konsekwencji już w 7.--10. epoce zapamiętują one zbiór treningowy w niemal $100\%$ (\texttt{Train Acc} $= 99.99\% - 100.00\%$), a dalsze epoki prowadzą do wzrostu straty walidacyjnej. Jak pokażemy w Sekcji \ref{sec:full_comparison}, te same głębsze architektury rozwijają pełnię możliwości dopiero po zasileniu pełnym zbiorem $N = 60\,000$.
+\end{enumerate}
+
+\subsection{Wpływ funkcji aktywacji oraz miary błędu ($N = 10\,000$)}
+
+W drugim badaniu na ustalonej 2-warstwowej architekturze \texttt{784-128-64-10} porównano trzy funkcje aktywacji w warstwach ukrytych (\texttt{ReLU}, \texttt{tanh}, \texttt{sigmoid}) oraz dwie funkcje straty na wyjściu sieci (\texttt{CCE} oraz \texttt{MSE}). Zestawienie wyników prezentuje Tabela \ref{tab:act_loss_10k} oraz Rysunek \ref{fig:tuning}b.
+
+\begin{table}[H]
+\centering
+\caption{Porównanie funkcji aktywacji oraz funkcji straty dla sieci \texttt{784-128-64-10} na podzbiorze $N = 10\,000$ ($15$ epok, $\eta = 0.01$, $\texttt{batch\_size} = 128$).}
+\label{tab:act_loss_10k}
+\vspace{0.2cm}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llcccccc}
+\toprule
+\textbf{Aktywacja ukryta} & \textbf{Funkcja straty} & \textbf{Best Epoch} & \textbf{Val Loss (best)} & \textbf{Train Acc} & \textbf{Val Acc} & \textbf{Test Acc ($2\text{k}$)} & \textbf{Czas [s]} \\
+\midrule
+\textbf{\texttt{relu}} & \textbf{\texttt{cce}} & 10 & \textbf{0.1972} & \textbf{99.93\%} & \textbf{93.40\%} & \textbf{93.95\%} & \textbf{15.44} \\
+\texttt{tanh} & \texttt{cce} & 15 & 0.2301 & 99.41\% & 92.70\% & 92.95\% & 34.74 \\
+\texttt{sigmoid} & \texttt{cce} & 15 & 0.3407 & 92.20\% & 89.10\% & 90.50\% & 37.60 \\
+\midrule
+\texttt{relu} & \texttt{mse} & 15 & 0.0202 & 90.16\% & 87.20\% & 88.50\% & 25.70 \\
+\texttt{tanh} & \texttt{mse} & 15 & 0.0221 & 88.44\% & 85.70\% & 88.00\% & 35.25 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\screenshot{report2/fig2_mnist_n10000_tuning.png}{Wyniki eksperymentów wstępnych na podzbiorze $N = 10\,000$: (a) wpływ architektury warstw ukrytych na dokładność walidacyjną i czas treningu, (b) porównanie funkcji aktywacji i funkcji straty dla sieci \texttt{784-128-64-10}. \label{fig:tuning}}
+
+Z Tabeli \ref{tab:act_loss_10k} wynikają dwa kluczowe wnioski:
+\begin{itemize}
+    \item \textbf{Dominacja \texttt{ReLU} pod względem skuteczności i szybkości:} Funkcja \texttt{ReLU} osiąga najwyższą dokładność ($93.95\%$ na teście wobec $92.95\%$ dla \texttt{tanh} i $90.50\%$ dla \texttt{sigmoid}), a jej trening trwa ponad \textbf{dwukrotnie krócej} ($15.44\,\text{s}$ vs $37.60\,\text{s}$ dla \texttt{sigmoid}) dzięki zastąpieniu kosztownego obliczania funkcji wykładniczej prostym operatorem progowania $\max(0, z)$.
+    
+    \item \textbf{Zdecydowana przewaga \texttt{CCE} nad \texttt{MSE} w klasyfikacji 10-klasowej:} Zastąpienie entropii krzyżowej (\texttt{CCE}) błędem średniokwadratowym (\texttt{MSE}) powoduje drastyczny spadek dokładności: o \textbf{6.20 p.p.} na zbiorze walidacyjnym dla \texttt{ReLU} ($93.40\% \to 87.20\%$) oraz o \textbf{7.00 p.p.} dla \texttt{tanh} ($92.70\% \to 85.70\%$). 
+    % Podczas gdy dla pary \texttt{softmax + CCE} gradient wejścia do ostatniej warstwy jest liniowy względem błędu predykcji ($\hat{y}_c - y_c$), dla pary \texttt{softmax + MSE} gradient zostaje przemnożony przez wyrazy jakobianu funkcji \texttt{softmax} postaci $\hat{y}_c(1 - \hat{y}_c)$. Dla błędnie sklasyfikowanych przykładów o dużym pobudzeniu $\hat{y}_c \approx 0$ lub $\hat{y}_c \approx 1$ czynnik ten bliski jest zeru, co drastycznie spowalnia korekcję wag.
+\end{itemize}
+
+\subsection{Dobór współczynnika uczenia i rozmiaru mini-batcha ($N = 10\,000$)}
+
+W trzecim badaniu wstępnym dla sieci \texttt{784-128-64-10} (\texttt{ReLU + CCE}) sprawdzono wpływ współczynnika uczenia $\eta \in \{0.002, 0.01, 0.05\}$ oraz rozmiaru paczki $\texttt{batch\_size} \in \{32, 64, 128, 256\}$ (Tabela \ref{tab:hyperparams_10k}).
+
+\begin{table}[H]
+\centering
+\caption{Wpływ współczynnika uczenia (\texttt{learning\_rate}) oraz rozmiaru paczki (\texttt{batch\_size}) dla sieci \texttt{784-128-64-10} na podzbiorze $N = 10\,000$ ($15$ epok, \texttt{ReLU + CCE}).}
+\label{tab:hyperparams_10k}
+\vspace{0.2cm}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{ccccccc}
+\toprule
+\textbf{Learning Rate ($\eta$)} & \textbf{Batch Size ($B$)} & \textbf{Best Epoch} & \textbf{Val Loss (best)} & \textbf{Train Acc} & \textbf{Val Acc} & \textbf{Czas [s]} \\
+\midrule
+0.002 & 128 & 15 & 0.2518 & 96.94\% & 91.30\% & 24.17 \\
+\textbf{0.010} & \textbf{128} & 10 & \textbf{0.1972} & 99.93\% & 93.40\% & 26.86 \\
+0.050 & 128 & 4 & 0.2095 & \textbf{100.00\%} & \textbf{94.80\%} & 26.76 \\
+\midrule
+0.010 & 32 & 6 & 0.2230 & \textbf{100.00\%} & \textbf{95.00\%} & 72.63 \\
+\textbf{0.010} & \textbf{64} & 6 & \textbf{0.1995} & \textbf{100.00\%} & 93.90\% & 42.27 \\
+0.010 & 256 & 15 & 0.2074 & 99.16\% & 93.30\% & \textbf{16.07} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Zbyt mały krok uczenia ($\eta = 0.002$) oraz zbyt duży rozmiar paczki ($B = 256$, dający zaledwie 36 aktualizacji wag na epokę) skutkują niedouczeniem sieci w ciągu 15 epok. Z kolei mały rozmiar paczki ($B = 32$) oraz duży krok ($\eta = 0.05$) pozwalają szybko osiągnąć wysoką dokładność klasyfikacji ($\text{Val Acc} = 94.80\% - 95.00\%$), ale kosztem wyższej minimalnej straty walidacyjnej ($\text{Val Loss} = 0.2095 - 0.2230$) oraz blisko trzykrotnie dłuższego czasu treningu dla $B = 32$ ($72.63\,\text{s}$). Jako optymalny punkt pracy do eksperymentów głównych wybrano $\eta = 0.01$ oraz $B = 64$, łączące niską stratę walidacyjną ($0.1995$), wysoką dokładność i dobrą wydajność macierzową.
+
+\subsection{Porównanie najlepszych konfiguracji: $N = 10\,000$ vs pełny zbiór $N = 60\,000$}
+\label{sec:full_comparison}
+
+W kluczowym etapie badań cztery najlepsze konfiguracje wyłonione we wcześniejszych eksperymentach (\texttt{784-128-64-10}, \texttt{784-256-128-10} oraz \texttt{784-256-128-64-10} z aktywacją \texttt{ReLU}, a także porównawczo \texttt{784-256-128-10} z aktywacją \texttt{tanh}) wytrenowano przez $20$ epok przy $\eta = 0.01, \gamma = 0.9, B = 64$ w dwóch wariantach:
+\begin{itemize}
+    \item na podzbiorze uczącym $N = 10\,000$ ($9\,000$ train + $1\,000$ val),
+    \item na pełnym zbiorze uczącym $N = 60\,000$ ($54\,000$ train + $6\,000$ val),
+\end{itemize}
+oceniając oba warianty na tym samym, pełnym zbiorze testowym $N_{\text{test}} = 10\,000$. Wyniki przedstawiono w Tabeli \ref{tab:best_compare} oraz na Rysunku \ref{fig:compare_10k_60k}.
+
+\begin{table}[H]
+\centering
+\caption{Porównanie skuteczności najlepszych konfiguracji sieci MLP uczonych na podzbiorze $N = 10\,000$ oraz na pełnym zbiorze $N = 60\,000$ (ocena na pełnym zbiorze testowym $N_{\text{test}} = 10\,000$, $20$ epok, $\eta = 0.01$, $\gamma = 0.9$, $B = 64$).}
+\label{tab:best_compare}
+\vspace{0.2cm}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llccccccc}
+\toprule
+\textbf{Architektura} & \textbf{Aktywacja} & \textbf{Rozmiar $N$} & \textbf{Val Loss (best)} & \textbf{Test Loss} & \textbf{Val Acc} & \textbf{Test Acc ($10\text{k}$)} & \textbf{Błędy na $10\text{k}$} & \textbf{Czas [s]} \\
+\midrule
+\texttt{784-128-64-10} & \texttt{relu} & $10\,000$ & 0.1995 & 0.2572 & 94.10\% & 94.43\% & 557 & 67.52 \\
+\texttt{784-128-64-10} & \texttt{relu} & $\mathbf{60\,000}$ & \textbf{0.1058} & 0.1356 & 97.23\% & \textbf{97.46\%} & 254 & \textbf{48.09} \\
+\midrule
+\texttt{784-256-128-10} & \texttt{relu} & $10\,000$ & 0.1850 & 0.2442 & 94.40\% & 94.80\% & 520 & 418.30 \\
+\textbf{\texttt{784-256-128-10}} & \textbf{\texttt{relu}} & $\mathbf{60\,000}$ & 0.1083 & 0.1224 & 97.35\% & \textbf{97.62\%} & \textbf{238} & 120.17 \\
+\midrule
+\texttt{784-256-128-64-10} & \texttt{relu} & $10\,000$ & 0.2034 & 0.2707 & 94.40\% & 94.45\% & 555 & 394.89 \\
+\texttt{784-256-128-64-10} & \texttt{relu} & $\mathbf{60\,000}$ & 0.1077 & 0.1352 & \textbf{97.55\%} & \textbf{97.60\%} & 240 & 125.35 \\
+\midrule
+\texttt{784-256-128-10} & \texttt{tanh} & $10\,000$ & 0.2177 & 0.2594 & 93.50\% & 93.53\% & 647 & 388.49 \\
+\texttt{784-256-128-10} & \texttt{tanh} & $\mathbf{60\,000}$ & 0.1109 & \textbf{0.1208} & 97.00\% & 96.93\% & 307 & 128.35 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\screenshot{report2/fig3_mnist_n10000_vs_n60000.png}{Porównanie wyników dla $N = 10\,000$ oraz $N = 60\,000$: (a) dokładność na pełnym zbiorze testowym dla czterech najlepszych konfiguracji, (b) przebieg straty treningowej i walidacyjnej w kolejnych epokach dla najlepszego modelu \texttt{784-256-128-10} na pełnym zbiorze $N = 60\,000$. \label{fig:compare_10k_60k}}
+
+Zestawienie w Tabeli \ref{tab:best_compare} prowadzi do kluczowych wniosków:
+\begin{enumerate}
+    \item \textbf{Ponad dwukrotna redukcja liczby błędów dzięki pełnemu zbiorowi uczącemu ($N = 60\,000$):} Dla każdej z czterech badanych konfiguracji zwiększenie zbioru uczącego z $10\,000$ do $60\,000$ przykładów podnosi dokładność testową o \textbf{$+2.82$ do $+3.40$ punktu procentowego} oraz obniża stratę walidacyjną i testową niemal o połowę (np. z $0.2442$ do $0.1224$ dla sieci \texttt{784-256-128-10}). W ujęciu bezwzględnym liczba błędnie rozpoznanych cyfr na $10\,000$ prób testowych spada z $520$ ($N=10\,000$) do zaledwie \textbf{238 błędów} ($N=60\,000$), co oznacza \textbf{redukcję stopy błędu o 54.2\%} (z $5.20\%$ do $2.38\%$).
+    \item \textbf{Najlepsza architektura -- \texttt{784-256-128-10} (\texttt{ReLU + CCE}):} Najwyższą skuteczność na zbiorze testowym osiągnęła 2-warstwowa sieć z $256$ i $128$ neuronami ukrytymi (\textbf{97.62\%}), wyprzedzając nieznacznie sieć 3-warstwową \texttt{784-256-128-64-10} (\textbf{97.60\%}, która uzyskała najwyższą dokładność walidacyjną \textbf{97.55\%}) oraz mniejszą sieć \texttt{784-128-64-10} (\textbf{97.46\%}, trenującą się w zaledwie $48\,\text{s}$).
+    \item \textbf{Zbieżność i stabilizacja na pełnym zbiorze (Rysunek \ref{fig:compare_10k_60k}b):} Przy $54\,000$ próbek treningowych i $B = 64$ pojedyncza epoka obejmuje aż $844$ kroki aktualizacji gradientowej. Dzięki temu sieć \texttt{784-256-128-10} bardzo szybko zbiega do minimum straty walidacyjnej ($\text{Val CCE} = 0.1083$ w 4. epoce), a w kolejnych epokach precyzyjnie doskonali granice decyzyjne, osiągając na końcu 20. epoki dokładność walidacyjną $97.35\%$ i testową $97.62\%$.
+\end{enumerate}
+
+\newpage
+
+\subsection{Szczegółowa ocena jakości na zbiorze testowym: macierz pomyłek i analiza błędów}
+
+W celu dokładnego zbadania zachowania najlepszego modelu (\texttt{784-256-128-10}, $\text{Test Acc} = 97.62\%$) wygenerowano macierz pomyłek na całym zbiorze testowym ($10\,000$ próbek, Rysunek \ref{fig:conf_mat}) oraz zestawiono przykłady poprawnych i błędnych predykcji wraz z prawdopodobieństwem zwróconym przez warstwę \texttt{softmax} (Rysunek \ref{fig:preds}).
+
+\screenshot{report2/fig4_mnist_confusion_matrix.png}{Macierz pomyłek ($10 \times 10$) dla najlepszego modelu \texttt{784-256-128-10} (\texttt{ReLU + CCE}) na pełnym zbiorze testowym MNIST ($10\,000$ próbek, ogólna dokładność $97.62\%$). \label{fig:conf_mat}}
+
+Z analizy macierzy pomyłek (Rysunek \ref{fig:conf_mat}) wynikają następujące obserwacje dotyczące rozpoznawania poszczególnych cyfr:
+\begin{itemize}
+    \item \textbf{Najłatwiejsze klasy:} Najwyższą czułość (\textit{recall}) model osiąga dla cyfry \textbf{\texttt{1}} ($1126 / 1135 = \mathbf{99.21\%}$) oraz cyfry \textbf{\texttt{0}} ($968 / 980 = \mathbf{98.78\%}$), które charakteryzują się jednoznaczną strukturą geometryczną.
+    \item \textbf{Najczęstsze pomyłki międzyklasowe:} Najwięcej błędów występuje pomiędzy parami cyfr o dużym podobieństwie wizualnym:
+    \begin{itemize}
+        \item \texttt{5} sklasyfikowane jako \texttt{3} (\textbf{11 przypadków}) oraz \texttt{3} jako \texttt{5} (\textbf{8 przypadków}) -- różnica sprowadza się do kierunku górnego łącznika,
+        \item \texttt{2} sklasyfikowane jako \texttt{3} (\textbf{9 przypadków}) oraz \texttt{7} jako \texttt{2} (\textbf{9 przypadków}) i \texttt{7} jako \texttt{9} (\textbf{8 przypadków}),
+        \item \texttt{8} sklasyfikowane jako \texttt{3} (\textbf{9 przypadków}) -- gdy lewa część pętli ósemki jest słabo domknięta.
+    \end{itemize}
+\end{itemize}
+
+\screenshot{report2/fig5_mnist_predictions.png}{Przykłady predykcji sieci \texttt{784-256-128-10} na zbiorze testowym wraz z pewnością warstwy \texttt{softmax}: poprawne rozpoznania (górny rząd) oraz błędne predykcje o najwyższej pewności modelu (dolny rząd). \label{fig:preds}}
+
+Wizualna inspekcja błędnie sklasyfikowanych obrazów (dolny rząd na Rysunku \ref{fig:preds}) potwierdza, że większość pomyłek sieci dotyczy nietypowo napisanych, przekrzywionych lub niekompletnych znaków, które są niejednoznaczne nawet dla człowieka (np. cyfra \texttt{5} bez górnej kreski poziomej przypominająca \texttt{3}, niedomknięta u góry \texttt{4} wyglądająca jak \texttt{7}, silnie pochylona \texttt{6} przypominająca \texttt{4} czy połączona z artefaktem cyfra \texttt{2} przypominająca \texttt{6}).
+
+\section{Podsumowanie i wnioski końcowe}
+
+Przeprowadzone badania nad zastosowaniem autorskiej implementacji wielowarstwowego perceptronu (MLP) do rozpoznawania cyfr ze zbioru MNIST pozwalają sformułować następujące wnioski końcowe:
+\begin{enumerate}
+    \item \textbf{Wysoka skuteczność klasycznego MLP w zadaniu rozpoznawania obrazów cyfr:} Bez stosowania warstw splotowych (CNN) ani zewnętrznych bibliotek uczenia maszynowego, odpowiednio skonfigurowana sieć gęsta \texttt{784-256-128-10} z funkcją aktywacji \texttt{ReLU}, wyjściem \texttt{softmax}, stratą \texttt{CCE} oraz optymalizatorem SGD z pędem ($\eta = 0.01, \gamma = 0.9, B = 64$) osiąga na 10-tysięcznym zbiorze testowym dokładność \textbf{97.62\%}.
+    \item \textbf{Skuteczność dwuetapowej metodyki strojenia hiperparametrów:} Przeprowadzenie wstępnych eksperymentów na ograniczonym podzbiorze uczącym ($N = 10\,000$) pozwoliło w krótkim czasie zweryfikować 18 konfiguracji i jednoznacznie wyeliminować nieefektywne warianty (brak warstw ukrytych, aktywację \texttt{sigmoid}, funkcję straty \texttt{MSE} oraz skrajne wartości kroku uczenia i rozmiaru mini-batcha).
+    \item \textbf{Kluczowa rola rozmiaru zbioru uczącego dla głębszych sieci wielowarstwowych:} Dla sieci posiadających ponad $100\,000 - 240\,000$ wag podzbiór $N = 10\,000$ okazuje się niewystarczający do pełnej generalizacji ($\text{Test Acc} = 94.43\% - 94.80\%$). Przejście na pełny zbiór uczący $N = 60\,000$ zredukowało liczbę błędów na zbiorze testowym o ponad połowę ($54.2\%$), podnosząc dokładność wszystkich czołowych architektur z \texttt{ReLU} do przedziału \textbf{97.46\% -- 97.62\%}.
+\end{enumerate}
+
+\end{document}
