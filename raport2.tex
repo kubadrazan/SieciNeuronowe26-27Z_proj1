@@ -14,8 +14,6 @@
 \usepackage{booktabs}
 \usepackage{minted}
 \usemintedstyle{vs}
-\usepackage{biblatex}
-\addbibresource{references.bib}
 
 
 \geometry{margin=2.5cm}
@@ -88,10 +86,9 @@ Celem drugiej części projektu było zastosowanie własnej implementacji wielow
 W celu przyspieszenia procesu badawczego zastosowano dwuetapową procedurę eksperymentalną. W pierwszym etapie przeprowadzono przegląd architektur (od 0 do 3 warstw ukrytych), funkcji aktywacji (\texttt{ReLU}, \texttt{tanh}, \texttt{sigmoid}), miar błędu (\texttt{CCE} vs \texttt{MSE}) oraz parametrów optymalizacji (\texttt{learning\_rate}, \texttt{batch\_size}) na losowym podzbiorze uczącym o rozmiarze $N = 10\,000$. W drugim etapie najlepsze wyłonione konfiguracje wytrenowano na pełnym zbiorze uczącym ($N = 60\,000$, z podziałem na $54\,000$ próbek treningowych i $6\,000$ walidacyjnych) i poddano ostatecznej ocenie na odseparowanym zbiorze testowym ($N_{\text{test}} = 10\,000$). Najlepszy model o architekturze \texttt{784-256-128-10} z aktywacją \texttt{ReLU} i funkcją straty \texttt{CCE} osiągnął dokładność testową na poziomie \textbf{97.62\%}.
 
 
-% tego nie warto wywalić? przynajmniej tego pierwszego zdania
 \section{Wstęp i opis rozwiązywanego problemu}
 
-Problem optycznego rozpoznawania znaków dla ręcznie pisanych cyfr jest jednym z klasycznych zadań wizji komputerowej oraz uczenia maszynowego. Zadanie polega na przyporządkowaniu obrazowi w skali szarości o rozdzielczości $28 \times 28$ pikseli jednej z $K = 10$ dyskretnych klas odpowiadających cyfrom arabskim $\{0, 1, 2, \dots, 9\}$.
+Rozwiązywane zadanie polega na przyporządkowaniu obrazowi ręcznie pisanej cyfry w skali szarości o rozdzielczości $28 \times 28$ pikseli jednej z $K = 10$ dyskretnych klas odpowiadających cyfrom arabskim $\{0, 1, 2, \dots, 9\}$.
 
 \subsection{Charakterystyka zbioru danych MNIST}
 Zbiór danych \textbf{MNIST} (\textit{Modified National Institute of Standards and Technology}) składa się z dwóch rozłącznych części zapisanych w binarnym formacie \texttt{IDX}:
@@ -104,13 +101,11 @@ Każdy obraz reprezentowany jest jako macierz $28 \times 28$ bajtów o wartości
 \screenshot{report2/fig1_mnist_samples.png}{Przykładowe obrazy ręcznie pisanych cyfr ze zbioru uczącego MNIST \label{fig:samples}}
 
 \subsection{Podział danych}
-W procesie uczenia oraz doboru hiperparametrów korzystano \textbf{wyłącznie ze zbioru uczącego}. Zbiór uczący dzielono losowo (z ustalonym ziarnem generatora pseudolosowego $\text{seed} = 42$) w proporcji $90\% / 10\%$ ($\texttt{validation\_fraction} = 0.1$):
+W procesie uczenia, wyznaczania statystyk standaryzacji oraz doboru hiperparametrów korzystano \textbf{wyłącznie ze zbioru uczącego}, natomiast zbiór testowy służył jedynie do końcowej oceny nauczonej sieci. Zbiór uczący dzielono losowo (z ustalonym ziarnem generatora pseudolosowego $\text{seed} = 42$) w proporcji $90\% / 10\%$ ($\texttt{validation\_fraction} = 0.1$):
 \begin{itemize}
     \item W eksperymentach wstępnych ($N = 10\,000$): $9\,000$ próbek treningowych oraz $1\,000$ próbek walidacyjnych.
     \item W pełnym uczeniu ($N = 60\,000$): $54\,000$ próbek treningowych oraz $6\,000$ próbek walidacyjnych.
 \end{itemize}
-% nie jest to trochę już powtórzeniem początku tego subsection?
-Statystyki standaryzacji cech wyznaczano wyłącznie na części treningowej, a zbiór testowy służył wyłącznie do końcowej weryfikacji jakości już nauczonej sieci.
 
 \newpage
 
@@ -360,5 +355,21 @@ Na podstawie przeprowadzonych badań nad zastosowaniem własnej implementacji wi
     \item \textbf{Skuteczność dwuetapowej metodyki strojenia hiperparametrów:} Przeprowadzenie wstępnych eksperymentów na ograniczonym podzbiorze uczącym ($N = 10\,000$) pozwoliło w krótkim czasie zweryfikować 18 konfiguracji i jednoznacznie wyeliminować nieefektywne warianty (brak warstw ukrytych, aktywację \texttt{sigmoid}, funkcję straty \texttt{MSE} oraz skrajne wartości kroku uczenia i rozmiaru mini-batcha).
     \item \textbf{Kluczowa rola rozmiaru zbioru uczącego dla głębszych sieci wielowarstwowych:} Dla sieci posiadających ponad $100\,000 - 240\,000$ wag podzbiór $N = 10\,000$ okazuje się niewystarczający do pełnej generalizacji ($\text{Test Acc} = 94.43\% - 94.80\%$). Przejście na pełny zbiór uczący $N = 60\,000$ zredukowało liczbę błędów na zbiorze testowym o ponad połowę ($54.2\%$), podnosząc dokładność wszystkich czołowych architektur z \texttt{ReLU} do przedziału \textbf{97.46\% -- 97.62\%}.
 \end{enumerate}
+
+\subsection{Ograniczenia zastosowanego rozwiązania}
+Pomimo wysokiej skuteczności model posiada istotne ograniczenia wynikające z przyjętych założeń projektowych:
+\begin{itemize}
+    \item \textbf{Utrata relacji przestrzennych 2D:} Spłaszczenie obrazu $28 \times 28$ do wektora $\mathbb{R}^{784}$ powoduje, że gęsta sieć MLP traktuje każdy piksel niezależnie od jego sąsiedztwa geometrycznego i nie jest niezmiennicza względem przesunięć, obrotów ani lokalnych deformacji pisma.
+    % \item \textbf{Brak jawnej regularyzacji i harmonogramu kroku uczenia:} Zgodnie z wymogiem nierozszerzania implementacji z Części I o nowe mechanizmy, sieć nie korzysta z regularyzacji \textit{Dropout}, \textit{weight decay} ($L_2$), augmentacji obrazów ani adaptacyjnego zmniejszania współczynnika uczenia ($\eta$), co po przekroczeniu 4.--8. epoki prowadzi do stopniowego przeuczania na zbiorze treningowym.
+    \item \textbf{Wydajność obliczeniowa na CPU:} Obliczenia realizowane są wyłącznie na procesorze CPU w czystym \texttt{NumPy}, co przy dużych warstwach ukrytych ($784 \times 256$) wydłuża czas wieloepokowego treningu w porównaniu z bibliotekami obsługującymi akcelerację GPU.
+\end{itemize}
+
+\section{Deklaracja wykorzystania narzędzi AI}
+
+W trakcie realizacji drugiej części projektu wykorzystano narzędzia oparte na modelach językowych (AI) w następującym zakresie:
+\begin{itemize}
+    \item przekształcenie i dostosowanie skryptu badawczego \texttt{src/experiments.py} z części pierwszej do postaci skryptu \texttt{src/mnist\_experiments.py} obsługującego eksperymenty i generowanie wykresów dla zbioru MNIST,
+    \item wsparcie redakcyjne, formatowanie tabel w systemie \LaTeX{} oraz poprawa stylistyki i czytelności tekstu podczas pisania raportu.
+\end{itemize}
 
 \end{document}
