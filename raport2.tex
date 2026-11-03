@@ -87,6 +87,8 @@ Celem drugiej części projektu było zastosowanie własnej implementacji wielow
 
 W celu przyspieszenia procesu badawczego zastosowano dwuetapową procedurę eksperymentalną. W pierwszym etapie przeprowadzono przegląd architektur (od 0 do 3 warstw ukrytych), funkcji aktywacji (\texttt{ReLU}, \texttt{tanh}, \texttt{sigmoid}), miar błędu (\texttt{CCE} vs \texttt{MSE}) oraz parametrów optymalizacji (\texttt{learning\_rate}, \texttt{batch\_size}) na losowym podzbiorze uczącym o rozmiarze $N = 10\,000$. W drugim etapie najlepsze wyłonione konfiguracje wytrenowano na pełnym zbiorze uczącym ($N = 60\,000$, z podziałem na $54\,000$ próbek treningowych i $6\,000$ walidacyjnych) i poddano ostatecznej ocenie na odseparowanym zbiorze testowym ($N_{\text{test}} = 10\,000$). Najlepszy model o architekturze \texttt{784-256-128-10} z aktywacją \texttt{ReLU} i funkcją straty \texttt{CCE} osiągnął dokładność testową na poziomie \textbf{97.62\%}.
 
+
+% tego nie warto wywalić? przynajmniej tego pierwszego zdania
 \section{Wstęp i opis rozwiązywanego problemu}
 
 Problem optycznego rozpoznawania znaków dla ręcznie pisanych cyfr jest jednym z klasycznych zadań wizji komputerowej oraz uczenia maszynowego. Zadanie polega na przyporządkowaniu obrazowi w skali szarości o rozdzielczości $28 \times 28$ pikseli jednej z $K = 10$ dyskretnych klas odpowiadających cyfrom arabskim $\{0, 1, 2, \dots, 9\}$.
@@ -102,18 +104,19 @@ Każdy obraz reprezentowany jest jako macierz $28 \times 28$ bajtów o wartości
 \screenshot{report2/fig1_mnist_samples.png}{Przykładowe obrazy ręcznie pisanych cyfr ze zbioru uczącego MNIST \label{fig:samples}}
 
 \subsection{Podział danych}
-Zgodnie z wymogami metodologicznymi w procesie uczenia oraz doboru hiperparametrów korzystano \textbf{wyłącznie ze zbioru uczącego}. Zbiór uczący dzielono losowo (z ustalonym ziarnem generatora pseudolosowego $\text{seed} = 42$) w proporcji $90\% / 10\%$ ($\texttt{validation\_fraction} = 0.1$):
+W procesie uczenia oraz doboru hiperparametrów korzystano \textbf{wyłącznie ze zbioru uczącego}. Zbiór uczący dzielono losowo (z ustalonym ziarnem generatora pseudolosowego $\text{seed} = 42$) w proporcji $90\% / 10\%$ ($\texttt{validation\_fraction} = 0.1$):
 \begin{itemize}
     \item W eksperymentach wstępnych ($N = 10\,000$): $9\,000$ próbek treningowych oraz $1\,000$ próbek walidacyjnych.
     \item W pełnym uczeniu ($N = 60\,000$): $54\,000$ próbek treningowych oraz $6\,000$ próbek walidacyjnych.
 \end{itemize}
+% nie jest to trochę już powtórzeniem początku tego subsection?
 Statystyki standaryzacji cech wyznaczano wyłącznie na części treningowej, a zbiór testowy służył wyłącznie do końcowej weryfikacji jakości już nauczonej sieci.
 
 \newpage
 
 \section{Opis zastosowanej sieci i jej implementacji}
 
-Rozwiązanie bazuje bezpośrednio na macierzowej implementacji sieci MLP oraz algorytmu propagacji wstecznej błędu opracowanej w Części I projektu. Sieć składa się z sekwencji warstw gęstych (\texttt{Dense}), realizujących przekształcenie afiniczne $\mathbf{z}^{(l)} = \mathbf{a}^{(l-1)}\mathbf{W}^{(l)} + \mathbf{b}^{(l)}$ oraz nieliniową funkcję aktywacji $\mathbf{a}^{(l)} = f^{(l)}(\mathbf{z}^{(l)})$.
+Rozwiązanie bazuje bezpośrednio na macierzowej implementacji sieci MLP oraz algorytmu propagacji wstecznej błędu opracowanej w pierwszej części projektu. Sieć składa się z sekwencji warstw gęstych (\texttt{Dense}), realizujących przekształcenie afiniczne $\mathbf{z}^{(l)} = \mathbf{a}^{(l-1)}\mathbf{W}^{(l)} + \mathbf{b}^{(l)}$ oraz nieliniową funkcję aktywacji $\mathbf{a}^{(l)} = f^{(l)}(\mathbf{z}^{(l)})$.
 
 \subsection{Architektura wyjściowa, inicjalizacja wag i optymalizacja}
 \begin{itemize}
@@ -127,7 +130,7 @@ Rozwiązanie bazuje bezpośrednio na macierzowej implementacji sieci MLP oraz al
 \end{itemize}
 
 \subsection{Optymalizacje kodu pod kątem zbioru MNIST}
-Przejście z dwuwymiarowych zbiorów z Części I ($D = 2$) na zbiór MNIST ($D = 784$, $N = 60\,000$) wymagało wprowadzenia następujących optymalizacji technicznych:
+Przejście z dwuwymiarowych zbiorów z części I ($D = 2$) na zbiór MNIST ($D = 784$, $N = 60\,000$) wymagało wprowadzenia pewnych optymalizacji:
 \begin{enumerate}
     \item \textbf{Szybki binarny odczyt formatu IDX i normalizacja wstępna:} W module \texttt{src/utils.py} zaimplementowano funkcję \texttt{load\_mnist\_idx}, która odczytuje nagłówki Big-Endian przez moduł \texttt{struct} i ładuje całe tablice pikseli bezpośrednio do bufora \texttt{NumPy} za pomocą \texttt{np.fromfile} (czas wczytania $60\,000$ obrazów wynosi poniżej $0.03\,\text{s}$), od razu skalując wartości z $[0, 255]$ do przedziału $[0, 1]$.
     % \item \textbf{Zabezpieczenie standaryzatora dla pikseli brzegowych:} Piksele na krawędziach obrazów MNIST są niemal zawsze zerowe (tło). Gdy na pojedynczym obrazie treningowym w rogu pojawi się szum, odchylenie standardowe $\sigma_j$ danej kolumny jest rzędu $10^{-3}$; pojawienie się białego piksela w tej kolumnie w zbiorze testowym powodowałoby skok wartości wejściowej po podzieleniu przez $\sigma_j$. W klasie \texttt{Standardizer} wprowadzono bezpieczny próg $\sigma_{\min} = 10^{-2}$, poniżej którego skala kolumny przyjmuje wartość $1.0$.
@@ -176,7 +179,7 @@ Przejście z dwuwymiarowych zbiorów z Części I ($D = 2$) na zbiór MNIST ($D 
 
 \section{Część główna -- Przeprowadzone eksperymenty i analiza wyników}
 
-Zgodnie ze wskazówkami metodycznymi badania podzielono na dwa etapy:
+Eksperymenty zostały podzielone na dwa etapy:
 \begin{enumerate}
     \item \textbf{Etap wstępny ($N = 10\,000$):} Szybkie przeszukanie przestrzeni architektur, funkcji aktywacji, funkcji straty oraz parametrów optymalizacji na podzbiorze $10\,000$ próbek uczących przez $15$ epok.
     \item \textbf{Etap właściwy ($N = 60\,000$ vs $N = 10\,000$):} Pełne uczenie czterech najlepszych konfiguracji na całym zbiorze uczącym przez $20$ epok oraz porównanie ich wyników na pełnym zbiorze.
@@ -184,7 +187,7 @@ Zgodnie ze wskazówkami metodycznymi badania podzielono na dwa etapy:
 
 \subsection{Wpływ architektury sieci na podzbiorze uczącym ($N = 10\,000$)}
 
-W pierwszym eksperymencie zbadano 7 architektur o liczbie warstw ukrytych od $0$ do $3$ (przy aktywacji \texttt{ReLU}, stracie \texttt{CCE}, $\eta = 0.01$, $\gamma = 0.9$ oraz $\texttt{batch\_size} = 128$). Wyniki zestawiono w Tabeli \ref{tab:arch_10k} oraz na Rysunku \ref{fig:tuning}a.
+W pierwszym eksperymencie zbadano 7 architektur o liczbie warstw ukrytych od $0$ do $3$ (przy aktywacji \texttt{ReLU}, stracie \texttt{CCE}, $\eta = 0.01$, $\gamma = 0.9$ oraz $\texttt{batch\_size} = 128$). Wyniki znajdują się w Tabeli \ref{tab:arch_10k} oraz na Rysunku \ref{fig:tuning}a.
 
 \begin{table}[H]
 \centering
@@ -319,7 +322,7 @@ oceniając oba warianty na tym samym, pełnym zbiorze testowym $N_{\text{test}} 
 
 \screenshot{report2/fig3_mnist_n10000_vs_n60000.png}{Porównanie wyników dla $N = 10\,000$ oraz $N = 60\,000$: (a) dokładność na pełnym zbiorze testowym dla czterech najlepszych konfiguracji, (b) przebieg straty treningowej i walidacyjnej w kolejnych epokach dla najlepszego modelu \texttt{784-256-128-10} na pełnym zbiorze $N = 60\,000$. \label{fig:compare_10k_60k}}
 
-Zestawienie w Tabeli \ref{tab:best_compare} prowadzi do kluczowych wniosków:
+Z zestawienia w Tabeli \ref{tab:best_compare} wynikają kluczowe wnioski:
 \begin{enumerate}
     \item \textbf{Ponad dwukrotna redukcja liczby błędów dzięki pełnemu zbiorowi uczącemu ($N = 60\,000$):} Dla każdej z czterech badanych konfiguracji zwiększenie zbioru uczącego z $10\,000$ do $60\,000$ przykładów podnosi dokładność testową o \textbf{$+2.82$ do $+3.40$ punktu procentowego} oraz obniża stratę walidacyjną i testową niemal o połowę (np. z $0.2442$ do $0.1224$ dla sieci \texttt{784-256-128-10}). W ujęciu bezwzględnym liczba błędnie rozpoznanych cyfr na $10\,000$ prób testowych spada z $520$ ($N=10\,000$) do zaledwie \textbf{238 błędów} ($N=60\,000$), co oznacza \textbf{redukcję stopy błędu o 54.2\%} (z $5.20\%$ do $2.38\%$).
     \item \textbf{Najlepsza architektura -- \texttt{784-256-128-10} (\texttt{ReLU + CCE}):} Najwyższą skuteczność na zbiorze testowym osiągnęła 2-warstwowa sieć z $256$ i $128$ neuronami ukrytymi (\textbf{97.62\%}), wyprzedzając nieznacznie sieć 3-warstwową \texttt{784-256-128-64-10} (\textbf{97.60\%}, która uzyskała najwyższą dokładność walidacyjną \textbf{97.55\%}) oraz mniejszą sieć \texttt{784-128-64-10} (\textbf{97.46\%}, trenującą się w zaledwie $48\,\text{s}$).
@@ -351,7 +354,7 @@ Wizualna inspekcja błędnie sklasyfikowanych obrazów (dolny rząd na Rysunku \
 
 \section{Podsumowanie i wnioski końcowe}
 
-Przeprowadzone badania nad zastosowaniem autorskiej implementacji wielowarstwowego perceptronu (MLP) do rozpoznawania cyfr ze zbioru MNIST pozwalają sformułować następujące wnioski końcowe:
+Na podstawie przeprowadzonych badań nad zastosowaniem własnej implementacji wielowarstwowego perceptronu (MLP) do rozpoznawania cyfr ze zbioru MNIST można sformułować następujące wnioski:
 \begin{enumerate}
     \item \textbf{Wysoka skuteczność klasycznego MLP w zadaniu rozpoznawania obrazów cyfr:} Bez stosowania warstw splotowych (CNN) ani zewnętrznych bibliotek uczenia maszynowego, odpowiednio skonfigurowana sieć gęsta \texttt{784-256-128-10} z funkcją aktywacji \texttt{ReLU}, wyjściem \texttt{softmax}, stratą \texttt{CCE} oraz optymalizatorem SGD z pędem ($\eta = 0.01, \gamma = 0.9, B = 64$) osiąga na 10-tysięcznym zbiorze testowym dokładność \textbf{97.62\%}.
     \item \textbf{Skuteczność dwuetapowej metodyki strojenia hiperparametrów:} Przeprowadzenie wstępnych eksperymentów na ograniczonym podzbiorze uczącym ($N = 10\,000$) pozwoliło w krótkim czasie zweryfikować 18 konfiguracji i jednoznacznie wyeliminować nieefektywne warianty (brak warstw ukrytych, aktywację \texttt{sigmoid}, funkcję straty \texttt{MSE} oraz skrajne wartości kroku uczenia i rozmiaru mini-batcha).
